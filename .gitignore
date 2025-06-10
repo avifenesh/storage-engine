@@ -14,3 +14,17 @@
 
 *.s
 *.S
+
+# Build directories for CI/CD
+build/
+asan/
+valgrind/
+
+# Memory analysis artifacts
+*.log
+*_asan
+*_valgrind
+
+# Temporary files
+*.tmp
+*.temp

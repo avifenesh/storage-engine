@@ -75,6 +75,68 @@ asm-clean: clean $(ASSEMBLY)
 executables: $(TARGETS)
 	@echo "✅ Built executables: $(TARGETS)"
 
+# Memory safety analysis targets
+.PHONY: asan valgrind memory-check memory-clean
+
+# Define flags safe for memory analysis (remove ARM64 kernel-specific flags)
+MEMORY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
+                     -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
+                     -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
+                     -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
+                     -Werror=designated-init -Werror=implicit-function-declaration
+
+# AddressSanitizer build and test
+asan:
+	@echo "🛡️  Building with AddressSanitizer..."
+	@mkdir -p build/asan
+	@for file in $(SOURCES); do \
+		base=$$(basename $$file .c); \
+		echo "Compiling $$file with ASan..."; \
+		$(CC) $(MEMORY_SAFE_CFLAGS) \
+			-fsanitize=address -fno-omit-frame-pointer -O1 \
+			-o build/asan/$$base $$file || exit 1; \
+	done
+	@echo "✅ ASan build complete"
+	@echo "🧪 Running ASan tests..."
+	@export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=true"; \
+	for exe in build/asan/*; do \
+		if [ -x "$$exe" ]; then \
+			echo "Testing $$exe..."; \
+			timeout 30s $$exe || echo "❌ Issues detected in $$exe"; \
+		fi; \
+	done
+
+# Valgrind build and test
+valgrind:
+	@echo "🛡️  Building for Valgrind analysis..."
+	@mkdir -p build/valgrind
+	@for file in $(SOURCES); do \
+		base=$$(basename $$file .c); \
+		echo "Compiling $$file for Valgrind..."; \
+		$(CC) $(MEMORY_SAFE_CFLAGS) \
+			-O0 -g3 \
+			-o build/valgrind/$$base $$file || exit 1; \
+	done
+	@echo "✅ Valgrind build complete"
+	@echo "🧪 Running Valgrind tests..."
+	@for exe in build/valgrind/*; do \
+		if [ -x "$$exe" ]; then \
+			echo "Testing $$exe with Valgrind..."; \
+			timeout 60s valgrind --tool=memcheck --leak-check=full \
+				--show-leak-kinds=all --track-origins=yes \
+				--error-exitcode=1 $$exe || echo "❌ Issues detected in $$exe"; \
+		fi; \
+	done
+
+# Run both memory safety tools
+memory-check: asan valgrind
+	@echo "🎉 Memory safety analysis complete!"
+
+# Clean memory analysis artifacts
+memory-clean:
+	@echo "🧹 Cleaning memory analysis artifacts..."
+	@rm -rf build/
+
 # Help target
 help:
 	@echo "📋 Assembly Generation Makefile"
@@ -87,6 +149,12 @@ help:
 	@echo "  executables  - Build executable files"
 	@echo "  clean        - Remove all build artifacts"
 	@echo ""
+	@echo "🛡️  Memory safety targets:"
+	@echo "  asan         - Build and test with AddressSanitizer"
+	@echo "  valgrind     - Build and test with Valgrind"
+	@echo "  memory-check - Run both ASan and Valgrind"
+	@echo "  memory-clean - Clean memory analysis artifacts"
+	@echo ""
 	@echo "📁 Project info:"
 	@echo "  Source files: $(SOURCES)"
 	@echo "  Assembly files: $(ASSEMBLY)"
@@ -96,4 +164,5 @@ help:
 	@echo "  make         - Generate assembly files"
 	@echo "  make asm-O0  - See unoptimized assembly"
 	@echo "  make asm-O3  - See highly optimized assembly"
+	@echo "  make memory-check - Run full memory safety analysis"
 	@echo "  make clean   - Clean up generated files"

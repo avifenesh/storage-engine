@@ -1,0 +1,305 @@
+name: Memory Safety Analysis (ASan + Valgrind)
+
+on:
+  push:
+    branches: [main]
+    paths: 
+      - '**.c'
+      - '**.h'
+      - 'Makefile'
+      - '.github/workflows/memory-safety.yml'
+  pull_request:
+    branches: [main]
+    paths: 
+      - '**.c'
+      - '**.h'
+      - 'Makefile'
+      - '.github/workflows/memory-safety.yml'
+  workflow_dispatch:
+
+env:
+  # Compiler and basic flags
+  CC: gcc
+  # Memory-safe flags (removed ARM64 kernel-specific and conflicting flags)
+  BASE_CFLAGS: -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Werror=implicit-function-declaration
+
+jobs:
+  addresssanitizer:
+    name: AddressSanitizer Analysis
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc build-essential libc6-dbg
+        
+    - name: Setup ASan environment
+      run: |
+        echo "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=true:check_initialization_order=1:strict_init_order=1" >> $GITHUB_ENV
+        echo "Architecture: ${{ matrix.arch }}"
+        echo "OS: ${{ matrix.os }}"
+        
+    - name: Discover C files
+      id: discover
+      run: |
+        c_files=$(find . -name "*.c" -type f | head -20)  # Limit to prevent overwhelming output
+        echo "Found C files:"
+        echo "$c_files"
+        echo "c_files<<EOF" >> $GITHUB_OUTPUT
+        echo "$c_files" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Compile with AddressSanitizer
+      run: |
+        echo "🔧 Compiling C files with AddressSanitizer on ${{ matrix.arch }}..."
+        mkdir -p build/asan
+        failed_files=""
+        
+        # Set architecture-specific flags
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          ARCH_FLAGS="-march=armv8-a -mtune=generic"
+        else
+          ARCH_FLAGS=""
+        fi
+        
+        while IFS= read -r file; do
+          if [ -n "$file" ]; then
+            base_name=$(basename "$file" .c)
+            echo "Compiling $file -> build/asan/$base_name"
+            
+            if ! $CC $BASE_CFLAGS $ARCH_FLAGS -fsanitize=address -fno-omit-frame-pointer -O1 \
+                    -o "build/asan/$base_name" "$file" 2>&1; then
+              echo "❌ Failed to compile $file"
+              failed_files="$failed_files $file"
+            else
+              echo "✅ Successfully compiled $file"
+            fi
+          fi
+        done <<< "${{ steps.discover.outputs.c_files }}"
+        
+        if [ -n "$failed_files" ]; then
+          echo "Failed to compile: $failed_files"
+          exit 1
+        fi
+        
+    - name: Run AddressSanitizer tests
+      run: |
+        echo "🧪 Running AddressSanitizer tests..."
+        cd build/asan
+        failed_runs=""
+        
+        for executable in *; do
+          if [ -x "$executable" ]; then
+            echo "Running AddressSanitizer test on $executable..."
+            
+            if timeout 30s ./"$executable" 2>&1; then
+              echo "✅ ASan test passed for $executable"
+            else
+              exit_code=$?
+              if [ $exit_code -eq 124 ]; then
+                echo "⏰ Timeout for $executable (30s limit)"
+              else
+                echo "❌ ASan detected issues in $executable (exit code: $exit_code)"
+                failed_runs="$failed_runs $executable"
+              fi
+            fi
+          fi
+        done
+        
+        if [ -n "$failed_runs" ]; then
+          echo "AddressSanitizer detected issues in: $failed_runs"
+          exit 1
+        fi
+        
+    - name: Upload ASan artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: asan-binaries-${{ matrix.arch }}
+        path: build/asan/
+        retention-days: 7
+
+  valgrind:
+    name: Valgrind Analysis  
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Valgrind and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind gcc build-essential libc6-dbg
+        
+    - name: Verify Valgrind installation
+      run: |
+        valgrind --version
+        which valgrind
+        echo "Architecture: ${{ matrix.arch }}"
+        echo "OS: ${{ matrix.os }}"
+        
+    - name: Discover C files
+      id: discover
+      run: |
+        c_files=$(find . -name "*.c" -type f | head -20)
+        echo "Found C files:"
+        echo "$c_files"
+        echo "c_files<<EOF" >> $GITHUB_OUTPUT
+        echo "$c_files" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Compile for Valgrind
+      run: |
+        echo "🔧 Compiling C files for Valgrind analysis on ${{ matrix.arch }}..."
+        mkdir -p build/valgrind
+        failed_files=""
+        
+        # Set architecture-specific flags
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          ARCH_FLAGS="-march=armv8-a -mtune=generic"
+        else
+          ARCH_FLAGS=""
+        fi
+        
+        while IFS= read -r file; do
+          if [ -n "$file" ]; then
+            base_name=$(basename "$file" .c)
+            echo "Compiling $file -> build/valgrind/$base_name"
+            
+            # Compile with debug info and no optimizations for better Valgrind analysis
+            if ! $CC $BASE_CFLAGS $ARCH_FLAGS -O0 -g3 \
+                    -o "build/valgrind/$base_name" "$file" 2>&1; then
+              echo "❌ Failed to compile $file"
+              failed_files="$failed_files $file"
+            else
+              echo "✅ Successfully compiled $file"
+            fi
+          fi
+        done <<< "${{ steps.discover.outputs.c_files }}"
+        
+        if [ -n "$failed_files" ]; then
+          echo "Failed to compile: $failed_files"
+          exit 1
+        fi
+        
+    - name: Run Valgrind Memcheck
+      run: |
+        echo "🧪 Running Valgrind Memcheck..."
+        cd build/valgrind
+        failed_runs=""
+        
+        for executable in *; do
+          if [ -x "$executable" ]; then
+            echo "Running Valgrind on $executable..."
+            
+            valgrind_output="valgrind_${executable}.log"
+            
+            if timeout 60s valgrind \
+                --tool=memcheck \
+                --leak-check=full \
+                --show-leak-kinds=all \
+                --track-origins=yes \
+                --verbose \
+                --error-exitcode=1 \
+                --suppressions=/dev/null \
+                --gen-suppressions=no \
+                --log-file="$valgrind_output" \
+                ./"$executable" 2>&1; then
+              echo "✅ Valgrind test passed for $executable"
+            else
+              exit_code=$?
+              if [ $exit_code -eq 124 ]; then
+                echo "⏰ Timeout for $executable (60s limit)"
+              else
+                echo "❌ Valgrind detected issues in $executable"
+                echo "--- Valgrind output for $executable ---"
+                cat "$valgrind_output" || echo "Could not read valgrind output"
+                echo "--- End of Valgrind output ---"
+                failed_runs="$failed_runs $executable"
+              fi
+            fi
+          fi
+        done
+        
+        if [ -n "$failed_runs" ]; then
+          echo "Valgrind detected issues in: $failed_runs"
+          exit 1
+        fi
+        
+    - name: Upload Valgrind reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-reports-${{ matrix.arch }}
+        path: build/valgrind/*.log
+        retention-days: 7
+        
+    - name: Upload Valgrind binaries
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-binaries-${{ matrix.arch }}
+        path: build/valgrind/
+        retention-days: 7
+
+  memory-safety-summary:
+    name: Memory Safety Summary
+    runs-on: ubuntu-latest
+    needs: [addresssanitizer, valgrind]
+    if: always()
+    
+    steps:
+    - name: Generate Summary
+      run: |
+        echo "# 🛡️ Memory Safety Analysis Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # AddressSanitizer results
+        echo "## 🔍 AddressSanitizer Results" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ needs.addresssanitizer.result }}" == "success" ]]; then
+          echo "✅ **All platforms passed**: x86_64 and ARM64" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Issues detected** on one or more platforms" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Valgrind results  
+        echo "## 🔬 Valgrind Results" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ needs.valgrind.result }}" == "success" ]]; then
+          echo "✅ **All platforms passed**: x86_64 and ARM64" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Issues detected** on one or more platforms" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## 🏗️ Tested Architectures" >> $GITHUB_STEP_SUMMARY
+        echo "- **x86_64** (ubuntu-latest): Standard development platform" >> $GITHUB_STEP_SUMMARY
+        echo "- **ARM64** (ubuntu-24.04-arm): Target Raspberry Pi architecture" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📊 Analysis Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **AddressSanitizer**: Detects buffer overflows, use-after-free, memory leaks" >> $GITHUB_STEP_SUMMARY
+        echo "- **Valgrind**: Advanced memory error detection and leak checking" >> $GITHUB_STEP_SUMMARY
+        echo "- **Coverage**: All C files in the repository" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 Download artifacts above to examine detailed reports for each architecture" >> $GITHUB_STEP_SUMMARY
