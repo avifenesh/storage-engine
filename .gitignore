@@ -1,9 +1,16 @@
+# Ignore all files
 *
+# But not directories
 !*/
+# And not files with extensions
 !*.*
+# And not Makefile
 !Makefile
+# And not dotfiles
 !.*
+
+# Object files
+*.o
 
 *.s
 *.S
-*.o

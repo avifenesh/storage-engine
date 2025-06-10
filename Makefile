@@ -1,4 +1,4 @@
-# Makefile with dynamic compile_commands.json generation and ARM64 kernel-style flags
+# Makefile for generating assembly files from C source with ARM64 kernel-style flags
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
          -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
@@ -19,83 +19,81 @@ CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
          -fmacro-prefix-map=./= -DCONFIG_AS_CFI=1 -DCONFIG_AS_CFI_SIGNAL_FRAME=1 \
          -DCONFIG_AS_CFI_SECTIONS=1
 
+# Assembly generation flags
+ASMFLAGS = -S -fverbose-asm
+
 # Automatically find all .c files
 SOURCES = $(wildcard *.c)
+ASSEMBLY = $(SOURCES:.c=.s)
 OBJECTS = $(SOURCES:.c=.o)
 TARGETS = $(SOURCES:.c=)
 
-# Default target
-.PHONY: all clean compile_commands.json bear-gen js-gen watch
+# Default target - generate assembly files
+.PHONY: all asm clean help
 
-all: $(TARGETS) compile_commands.json
+all: asm
 
-# Compile each .c file to executable
+# Generate assembly files for all C sources
+asm: $(ASSEMBLY)
+	@echo "✅ Generated assembly files: $(ASSEMBLY)"
+
+# Rule to generate assembly from C source
+%.s: %.c
+	@echo "🔧 Generating assembly for $<..."
+	$(CC) $(CFLAGS) $(ASMFLAGS) -o $@ $<
+
+# Compile executables (optional)
 %: %.c
+	@echo "🔨 Compiling executable $@..."
 	$(CC) $(CFLAGS) -o $@ $<
+
+# Object files rule (optional)
+%.o: %.c
+	@echo "⚙️  Compiling object file $@..."
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 # Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TARGETS) compile_commands.json
+	@echo "🧹 Cleaning build artifacts..."
+	rm -f $(OBJECTS) $(TARGETS) $(ASSEMBLY)
 
-# Generate compile_commands.json using Bear (recommended for complex builds)
-bear-gen:
-	@echo "🐻 Generating compile_commands.json using Bear..."
-	@if command -v bear >/dev/null 2>&1; then \
-		bear -- $(MAKE) $(TARGETS); \
-	else \
-		echo "❌ Bear not found. Install it or use 'make js-gen'"; \
-		exit 1; \
-	fi
+# Generate assembly with different optimization levels
+asm-O0: CFLAGS := $(filter-out -O2,$(CFLAGS)) -O0
+asm-O0: clean $(ASSEMBLY)
+	@echo "✅ Generated unoptimized assembly files"
 
-# Generate compile_commands.json using JavaScript (default method)
-js-gen:
-	@echo "� Generating compile_commands.json using JavaScript..."
-	@if command -v node >/dev/null 2>&1; then \
-		node generate-compile-commands.js; \
-	else \
-		echo "❌ Node.js not found. Please install Node.js"; \
-		exit 1; \
-	fi
+asm-O3: CFLAGS := $(filter-out -O2,$(CFLAGS)) -O3
+asm-O3: clean $(ASSEMBLY)
+	@echo "✅ Generated highly optimized assembly files"
 
-# Watch mode - auto-regenerate on file changes
-watch:
-	@echo "👀 Starting watch mode..."
-	@if command -v node >/dev/null 2>&1; then \
-		node generate-compile-commands.js --watch; \
-	else \
-		echo "❌ Node.js not found. Please install Node.js"; \
-		exit 1; \
-	fi
+# Generate assembly without debug info (cleaner output)
+asm-clean: CFLAGS := $(filter-out -g -gdwarf-4,$(CFLAGS))
+asm-clean: clean $(ASSEMBLY)
+	@echo "✅ Generated clean assembly files (no debug info)"
 
-# Auto-generate compile_commands.json (prioritizes JavaScript, falls back to Bear)
-compile_commands.json: $(SOURCES)
-	@echo "🔄 Auto-generating compile_commands.json..."
-	@if command -v node >/dev/null 2>&1 && [ -f generate-compile-commands.js ]; then \
-		echo "Using JavaScript..."; \
-		node generate-compile-commands.js; \
-	elif command -v bear >/dev/null 2>&1; then \
-		echo "Using Bear..."; \
-		bear -- $(MAKE) $(TARGETS); \
-	else \
-		echo "❌ No generation method available. Please install Node.js or Bear"; \
-		exit 1; \
-	fi
+# Build executables (optional)
+executables: $(TARGETS)
+	@echo "✅ Built executables: $(TARGETS)"
 
 # Help target
 help:
-	@echo "📋 Available targets:"
-	@echo "  all          - Build all executables and generate compile_commands.json"
-	@echo "  clean        - Remove build artifacts"
-	@echo "  js-gen       - Generate compile_commands.json using JavaScript"
-	@echo "  bear-gen     - Generate compile_commands.json using Bear (if available)"
-	@echo "  watch        - Watch for changes and auto-regenerate compile_commands.json"
-	@echo "  help         - Show this help message"
+	@echo "📋 Assembly Generation Makefile"
+	@echo ""
+	@echo "🎯 Main targets:"
+	@echo "  asm          - Generate assembly files (default)"
+	@echo "  asm-O0       - Generate unoptimized assembly"
+	@echo "  asm-O3       - Generate highly optimized assembly"
+	@echo "  asm-clean    - Generate assembly without debug info"
+	@echo "  executables  - Build executable files"
+	@echo "  clean        - Remove all build artifacts"
 	@echo ""
 	@echo "📁 Project info:"
 	@echo "  Source files: $(SOURCES)"
-	@echo "  Executables:  $(TARGETS)"
+	@echo "  Assembly files: $(ASSEMBLY)"
+	@echo "  Executables: $(TARGETS)"
 	@echo ""
 	@echo "🔧 Usage examples:"
-	@echo "  make         - Build everything"
-	@echo "  make js-gen  - Generate compilation database"
-	@echo "  make watch   - Start development mode with auto-regeneration"
+	@echo "  make         - Generate assembly files"
+	@echo "  make asm-O0  - See unoptimized assembly"
+	@echo "  make asm-O3  - See highly optimized assembly"
+	@echo "  make clean   - Clean up generated files"
