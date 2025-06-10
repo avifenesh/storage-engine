@@ -129,7 +129,7 @@ jobs:
       with:
         name: asan-binaries-${{ matrix.arch }}
         path: build/asan/
-        retention-days: 7
+        retention-days: 2
 
   valgrind:
     name: Valgrind Analysis  
@@ -253,7 +253,7 @@ jobs:
       with:
         name: valgrind-reports-${{ matrix.arch }}
         path: build/valgrind/*.log
-        retention-days: 7
+        retention-days: 2
         
     - name: Upload Valgrind binaries
       if: always()
@@ -261,7 +261,7 @@ jobs:
       with:
         name: valgrind-binaries-${{ matrix.arch }}
         path: build/valgrind/
-        retention-days: 7
+        retention-days: 2
 
   memory-safety-summary:
     name: Memory Safety Summary
