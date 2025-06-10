@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
          -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
          -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
          -fno-common -fshort-wchar -fno-PIE -march=armv8-a -mtune=generic \
-         -mgeneral-regs-only -DCONFIG_ARM64 -DCONFIG_64BIT -mcmodel=small \
+         -DCONFIG_ARM64 -DCONFIG_64BIT -mcmodel=small \
          -falign-functions=4 -falign-jumps=1 -falign-loops=1 \
          -fstack-protector-strong -fno-delete-null-pointer-checks \
          -fno-allow-store-data-races -Wframe-larger-than=2048 -pipe \
