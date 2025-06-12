@@ -2,8 +2,6 @@
 
 ## 📅 Sprint 1: C Core Refresh & Memory Fundamentals
 
-- Study memory alignment and struct padding ([reference](https://www.geeksforgeeks.org/data-structure-alignment-in-c/))
-
 - Build aligned struct for 128-bit vectors ([docs](https://www.kernel.org/doc/html/latest/core-api/unlocked-mm.html))
 
 - Learn and practice function pointers (callback dispatcher) ([guide](https://www.geeksforgeeks.org/function-pointer-in-c/))
@@ -44,9 +42,11 @@
 
 ## 🚧 In Progress
 
-- Build dynamic array (malloc, realloc, free) ([tutorial](https://www.learn-c.org/en/Dynamic_memory))
+- Study memory alignment and struct padding ([reference](https://www.geeksforgeeks.org/data-structure-alignment-in-c/))
 
 ## ✅ Done
 
 - Review pointer operations in C ([guide](https://beej.us/guide/bgc/html/split/pointers.html))
+
+- Build dynamic array (malloc, realloc, free) ([tutorial](https://www.learn-c.org/en/Dynamic_memory))
 
