@@ -1,3 +1,6 @@
+---
+applyTo: '**'
+---
 # C-Refresher Repository - Copilot Instructions
 
 ## Project Context & Goals
