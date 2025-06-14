@@ -55,7 +55,7 @@ asm: $(ASSEMBLY)
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning build artifacts..."
-	rm -f $(OBJECTS) $(TARGETS) $(ASSEMBLY)
+	rm -f $(OBJECTS) $(TARGETS) $(ASSEMBLY) *.learn.s
 
 # Generate assembly with different optimization levels
 asm-O0: CFLAGS := $(filter-out -O2,$(CFLAGS)) -O0
@@ -70,6 +70,19 @@ asm-O3: clean $(ASSEMBLY)
 asm-clean: CFLAGS := $(filter-out -g -gdwarf-4,$(CFLAGS))
 asm-clean: clean $(ASSEMBLY)
 	@echo "✅ Generated clean assembly files (no debug info)"
+
+# Generate learning-friendly assembly (minimal verbose output)
+asm-learn: CFLAGS := $(filter-out -g -gdwarf-4,$(CFLAGS))
+asm-learn: ASMFLAGS := -S
+asm-learn: clean
+	@echo "🎓 Generating learning-friendly assembly files..."
+	@for file in $(SOURCES); do \
+		base=$$(basename $$file .c); \
+		echo "Generating minimal assembly for $$file..."; \
+		$(CC) $(CFLAGS) $(ASMFLAGS) -o $$base.learn.s $$file; \
+		sed -i '/^[[:space:]]*#/d; /^[[:space:]]*$$/d; /^[[:space:]]*\.cfi_/d; /^[[:space:]]*\.file/d; /^[[:space:]]*\.ident/d; /^[[:space:]]*\.section.*note/d' $$base.learn.s; \
+	done
+	@echo "✅ Generated learning assembly files (*.learn.s) - minimal comments and directives"
 
 # Build executables (optional)
 executables: $(TARGETS)
