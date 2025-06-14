@@ -5,22 +5,29 @@ CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
          -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
          -fno-common -fshort-wchar -fno-PIE -march=armv8-a -mtune=generic \
          -DCONFIG_ARM64 -DCONFIG_64BIT -mcmodel=small \
-         -falign-functions=4 -falign-jumps=1 -falign-loops=1 \
-         -fstack-protector-strong -fno-delete-null-pointer-checks \
-         -fno-allow-store-data-races -Wframe-larger-than=2048 -pipe \
-         -fno-asynchronous-unwind-tables -fno-jump-tables -fno-strict-overflow \
-         -fno-stack-check -fconserve-stack -Wimplicit-fallthrough \
-         -Wno-unused-but-set-variable -Wno-unused-const-variable \
-         -Wno-pointer-sign -Wno-stringop-truncation -Wno-array-bounds \
-         -Wno-stringop-overflow -Wno-restrict -Wno-maybe-uninitialized \
-         -Wno-packed-not-aligned -O2 -fomit-frame-pointer -g -gdwarf-4 \
-         -Werror=date-time -Werror=incompatible-pointer-types \
-         -Werror=designated-init -Werror=implicit-function-declaration \
-         -fmacro-prefix-map=./= -DCONFIG_AS_CFI=1 -DCONFIG_AS_CFI_SIGNAL_FRAME=1 \
-         -DCONFIG_AS_CFI_SECTIONS=1
+	 -falign-functions=4 -falign-jumps=1 -falign-loops=1 \
+	 -fstack-protector-strong -fno-delete-null-pointer-checks \
+	 -fno-allow-store-data-races -Wframe-larger-than=2048 -pipe \
+	 -fno-asynchronous-unwind-tables -fno-jump-tables -fno-strict-overflow \
+	 -fno-stack-check -fconserve-stack -Wimplicit-fallthrough \
+	 -Wno-unused-but-set-variable -Wno-unused-const-variable \
+	 -Wno-pointer-sign -Wno-stringop-truncation -Wno-array-bounds \
+	 -Wno-stringop-overflow -Wno-restrict -Wno-maybe-uninitialized \
+	 -Wno-packed-not-aligned -O2 -fomit-frame-pointer -g -gdwarf-4 \
+	 -Werror=date-time -Werror=incompatible-pointer-types \
+	 -Werror=designated-init -Werror=implicit-function-declaration \
+	 -fmacro-prefix-map=./= -DCONFIG_AS_CFI=1 -DCONFIG_AS_CFI_SIGNAL_FRAME=1 \
+	 -DCONFIG_AS_CFI_SECTIONS=1
 
 # Assembly generation flags
 ASMFLAGS = -S -fverbose-asm
+
+# Define compatible flags for binary compilation (removes problematic kernel flags)
+BINARY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
+                     -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
+                     -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
+                     -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
+                     -Werror=designated-init -Werror=implicit-function-declaration
 
 # Automatically find all .c files
 SOURCES = $(wildcard *.c)
@@ -55,7 +62,8 @@ asm: $(ASSEMBLY)
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning build artifacts..."
-	rm -f $(OBJECTS) $(TARGETS) $(ASSEMBLY) *.learn.s *.O*.asm *.optimization.diff *.O*-vs-O*.diff
+	rm -f $(OBJECTS) $(TARGETS) $(ASSEMBLY) *.learn.s *.O*.asm *.optimization.diff *.O*-vs-O*.diff *.bin
+	rm -rf build/
 
 # Generate assembly with different optimization levels
 asm-O0: CFLAGS := $(filter-out -O2,$(CFLAGS)) -O0
@@ -180,124 +188,105 @@ asm-optimize-report: clean
 # Dynamic optimization level comparison (usage: make asm-compare LOW=0 HIGH=3)
 asm-compare: CFLAGS := $(filter-out -g -gdwarf-4,$(CFLAGS))
 asm-compare: 
-    @if [ -z "$(LOW)" ] || [ -z "$(HIGH)" ]; then \
-        echo "❌ Usage: make asm-compare LOW=<level> HIGH=<level>"; \
-        echo "   Example: make asm-compare LOW=0 HIGH=2"; \
-        echo "   Example: make asm-compare LOW=1 HIGH=3"; \
-        echo "   Available levels: 0, 1, 2, 3, s, z, fast, g"; \
-        exit 1; \
-    fi
-    @echo "🧹 Cleaning build artifacts..."
-    @$(MAKE) clean > /dev/null 2>&1
-    @if [ -n "$(SOURCES)" ]; then \
-        for src in $(SOURCES); do \
-            base=$$(basename $$src .c); \
-            echo "⚖️  Comparing $$src: O$(LOW) vs O$(HIGH)"; \
-            echo "========================================"; \
-            echo "🔨 Compiling and measuring compilation time..."; \
-            \
-            echo "  📏 O$(LOW) compilation:"; \
-            low_start=$$(date +%s.%N); \
-            $(CC) $(CFLAGS) -O$(LOW) $(ASMFLAGS) $$src -o $$base.O$(LOW).asm 2>/dev/null || true; \
-            $(CC) $(CFLAGS) -O$(LOW) $$src -o $$base.O$(LOW).bin 2>/dev/null || true; \
-            low_end=$$(date +%s.%N); \
-            low_time=$$(echo "$$low_end - $$low_start" | bc -l 2>/dev/null || echo "0"); \
-            printf "    ⏱️  Compile time: %.3fs\n" $$low_time; \
-            \
-            echo "  📏 O$(HIGH) compilation:"; \
-            high_start=$$(date +%s.%N); \
-            $(CC) $(CFLAGS) -O$(HIGH) $(ASMFLAGS) $$src -o $$base.O$(HIGH).asm 2>/dev/null || true; \
-            $(CC) $(CFLAGS) -O$(HIGH) $$src -o $$base.O$(HIGH).bin 2>/dev/null || true; \
-            high_end=$$(date +%s.%N); \
-            high_time=$$(echo "$$high_end - $$high_start" | bc -l 2>/dev/null || echo "0"); \
-            printf "    ⏱️  Compile time: %.3fs\n" $$high_time; \
-            \
-            if [ -f $$base.O$(LOW).asm ] && [ -f $$base.O$(HIGH).asm ]; then \
-                echo "📊 Generating comparison report..."; \
-                diff -u $$base.O$(LOW).asm $$base.O$(HIGH).asm > $$base.O$(LOW)-vs-O$(HIGH).diff || true; \
-                echo "  Created $$base.O$(LOW)-vs-O$(HIGH).diff"; \
-                \
-                echo "📦 Binary size analysis:"; \
-                if [ -f $$base.O$(LOW).bin ] && [ -f $$base.O$(HIGH).bin ]; then \
-                    low_size=$$(stat -c%s $$base.O$(LOW).bin 2>/dev/null || echo "0"); \
-                    high_size=$$(stat -c%s $$base.O$(HIGH).bin 2>/dev/null || echo "0"); \
-                    low_kb=$$(echo "scale=2; $$low_size / 1024" | bc -l 2>/dev/null || echo "0"); \
-                    high_kb=$$(echo "scale=2; $$high_size / 1024" | bc -l 2>/dev/null || echo "0"); \
-                    echo "  Binary O$(LOW): $$low_size bytes ($$low_kb KB)"; \
-                    echo "  Binary O$(HIGH): $$high_size bytes ($$high_kb KB)"; \
-                    if [ "$$low_size" -gt 0 ] && [ "$$high_size" -gt 0 ]; then \
-                        if [ "$$high_size" -lt "$$low_size" ]; then \
-                            reduction=$$(echo "scale=1; ($$low_size - $$high_size) * 100 / $$low_size" | bc -l); \
-                            echo "  ➡️  O$(HIGH) reduced binary size by $$reduction%"; \
-                        elif [ "$$high_size" -gt "$$low_size" ]; then \
-                            increase=$$(echo "scale=1; ($$high_size - $$low_size) * 100 / $$low_size" | bc -l); \
-                            echo "  ➡️  O$(HIGH) increased binary size by $$increase%"; \
-                        else \
-                            echo "  ➡️  Same binary size"; \
-                        fi; \
-                    fi; \
-                else \
-                    echo "  ❌ Could not analyze binary sizes"; \
-                fi; \
-                \
-                echo "🕒 Compilation performance:"; \
-                if [ "$$(echo "$$high_time > $$low_time" | bc -l 2>/dev/null)" = "1" ]; then \
-                    slowdown=$$(echo "scale=1; ($$high_time - $$low_time) * 100 / $$low_time" | bc -l 2>/dev/null || echo "0"); \
-                    echo "  ➡️  O$(HIGH) took $$slowdown% longer to compile"; \
-                elif [ "$$(echo "$$high_time < $$low_time" | bc -l 2>/dev/null)" = "1" ]; then \
-                    speedup=$$(echo "scale=1; ($$low_time - $$high_time) * 100 / $$low_time" | bc -l 2>/dev/null || echo "0"); \
-                    echo "  ➡️  O$(HIGH) compiled $$speedup% faster"; \
-                else \
-                    echo "  ➡️  Similar compilation times"; \
-                fi; \
-                \
-                echo "🔍 Assembly instruction analysis:"; \
-                low_inst=$$(grep -c "^\s*[a-z]" $$base.O$(LOW).asm 2>/dev/null || echo "0"); \
-                high_inst=$$(grep -c "^\s*[a-z]" $$base.O$(HIGH).asm 2>/dev/null || echo "0"); \
-                echo "  Instructions O$(LOW): $$low_inst, O$(HIGH): $$high_inst"; \
-                if [ "$$low_inst" -gt 0 ] && [ "$$high_inst" -gt 0 ]; then \
-                    if [ "$$high_inst" -lt "$$low_inst" ]; then \
-                        reduction=$$(( (low_inst - high_inst) * 100 / low_inst )); \
-                        echo "  ➡️  O$(HIGH) reduced instructions by $$reduction%"; \
-                    elif [ "$$high_inst" -gt "$$low_inst" ]; then \
-                        increase=$$(( (high_inst - low_inst) * 100 / low_inst )); \
-                        echo "  ➡️  O$(HIGH) increased instructions by $$increase% (possible loop unrolling)"; \
-                    else \
-                        echo "  ➡️  Same instruction count"; \
-                    fi; \
-                else \
-                    echo "  ➡️  Unable to analyze (likely empty/header-only file)"; \
-                fi; \
-                \
-                echo "🔍 Memory operations:"; \
-                low_loads=$$(grep -c "\(ldr\|ldp\)" $$base.O$(LOW).asm 2>/dev/null || echo "0"); \
-                high_loads=$$(grep -c "\(ldr\|ldp\)" $$base.O$(HIGH).asm 2>/dev/null || echo "0"); \
-                low_stores=$$(grep -c "\(str\|stp\)" $$base.O$(LOW).asm 2>/dev/null || echo "0"); \
-                high_stores=$$(grep -c "\(str\|stp\)" $$base.O$(HIGH).asm 2>/dev/null || echo "0"); \
-                echo "  Loads O$(LOW): $$low_loads, O$(HIGH): $$high_loads"; \
-                echo "  Stores O$(LOW): $$low_stores, O$(HIGH): $$high_stores"; \
-                \
-                echo "🔍 Control flow:"; \
-                low_branches=$$(grep -c "\(b\.\|bl\|br\)" $$base.O$(LOW).asm 2>/dev/null || echo "0"); \
-                high_branches=$$(grep -c "\(b\.\|bl\|br\)" $$base.O$(HIGH).asm 2>/dev/null || echo "0"); \
-                echo "  Branches O$(LOW): $$low_branches, O$(HIGH): $$high_branches"; \
-                \
-                echo "🔍 Function calls:"; \
-                low_calls=$$(grep -c "\sbl\s" $$base.O$(LOW).asm 2>/dev/null || echo "0"); \
-                high_calls=$$(grep -c "\sbl\s" $$base.O$(HIGH).asm 2>/dev/null || echo "0"); \
-                echo "  Function calls O$(LOW): $$low_calls, O$(HIGH): $$high_calls"; \
-                if [ "$$low_calls" -gt "$$high_calls" ]; then \
-                    inlined=$$(( low_calls - high_calls )); \
-                    echo "  ➡️  O$(HIGH) likely inlined $$inlined function(s)"; \
-                fi; \
-            else \
-                echo "❌ Failed to generate assembly for $$src"; \
-            fi; \
-            echo ""; \
-        done; \
-    else \
-        echo "❌ No C source files found in current directory"; \
-    fi
+	@if [ -z "$(LOW)" ] || [ -z "$(HIGH)" ]; then \
+		echo "❌ Usage: make asm-compare LOW=<level> HIGH=<level>"; \
+		echo "   Example: make asm-compare LOW=0 HIGH=2"; \
+		echo "   Example: make asm-compare LOW=1 HIGH=3"; \
+		echo "   Available levels: 0, 1, 2, 3, s, z, fast, g"; \
+		exit 1; \
+	fi
+	@echo "🔄 Comparing optimization levels O$(LOW) vs O$(HIGH)..."
+	@for file in $(SOURCES); do \
+		base=$$(basename $$file .c); \
+		echo ""; \
+		echo "⚖️  Comparing $$file: O$(LOW) vs O$(HIGH)"; \
+		echo "========================================"; \
+		echo "🔨 Compiling assembly with kernel flags..."; \
+		$(CC) $(CFLAGS) -O$(LOW) -S -o $$base.O$(LOW).asm $$file; \
+		$(CC) $(CFLAGS) -O$(HIGH) -S -o $$base.O$(HIGH).asm $$file; \
+		echo "🔨 Compiling binaries with compatible flags..."; \
+		$(CC) $(BINARY_SAFE_CFLAGS) -O$(LOW) -o $$base.O$(LOW).bin $$file 2>/dev/null || echo "  ⚠️  O$(LOW) binary compilation failed"; \
+		$(CC) $(BINARY_SAFE_CFLAGS) -O$(HIGH) -o $$base.O$(HIGH).bin $$file 2>/dev/null || echo "  ⚠️  O$(HIGH) binary compilation failed"; \
+		echo "📊 Generating comparison report..."; \
+		diff -u $$base.O$(LOW).asm $$base.O$(HIGH).asm > $$base.O$(LOW)-vs-O$(HIGH).diff || true; \
+		echo "  Created $$base.O$(LOW)-vs-O$(HIGH).diff"; \
+		echo ""; \
+		echo "📦 Binary Size Analysis:"; \
+		if [ -f $$base.O$(LOW).bin ] && [ -f $$base.O$(HIGH).bin ]; then \
+			low_size=$$(stat -c%s $$base.O$(LOW).bin 2>/dev/null || echo "0"); \
+			high_size=$$(stat -c%s $$base.O$(HIGH).bin 2>/dev/null || echo "0"); \
+			low_kb=$$(echo "scale=2; $$low_size / 1024" | bc -l 2>/dev/null || echo "0"); \
+			high_kb=$$(echo "scale=2; $$high_size / 1024" | bc -l 2>/dev/null || echo "0"); \
+			echo "  📏 O$(LOW) binary: $$low_size bytes ($$low_kb KB)"; \
+			echo "  📏 O$(HIGH) binary: $$high_size bytes ($$high_kb KB)"; \
+			if [ "$$low_size" -gt 0 ] && [ "$$high_size" -gt 0 ]; then \
+				if [ "$$high_size" -lt "$$low_size" ]; then \
+					reduction=$$(echo "scale=1; ($$low_size - $$high_size) * 100 / $$low_size" | bc -l 2>/dev/null || echo "0"); \
+					saved=$$(( low_size - high_size )); \
+					echo "  ✨ O$(HIGH) reduced binary size by $$reduction% (saved $$saved bytes)"; \
+				elif [ "$$high_size" -gt "$$low_size" ]; then \
+					increase=$$(echo "scale=1; ($$high_size - $$low_size) * 100 / $$low_size" | bc -l 2>/dev/null || echo "0"); \
+					added=$$(( high_size - low_size )); \
+					echo "  📈 O$(HIGH) increased binary size by $$increase% (added $$added bytes)"; \
+				else \
+					echo "  ➡️  Same binary size"; \
+				fi; \
+			fi; \
+			echo ""; \
+			echo "🔍 Detailed Size Breakdown:"; \
+			if command -v size >/dev/null 2>&1; then \
+				echo "  O$(LOW) sections:"; \
+				size $$base.O$(LOW).bin | tail -n +2 | awk '{printf "    text: %s, data: %s, bss: %s, total: %s\n", $$1, $$2, $$3, $$4}'; \
+				echo "  O$(HIGH) sections:"; \
+				size $$base.O$(HIGH).bin | tail -n +2 | awk '{printf "    text: %s, data: %s, bss: %s, total: %s\n", $$1, $$2, $$3, $$4}'; \
+			fi; \
+		else \
+			echo "  ❌ Could not analyze binary sizes (compilation failed)"; \
+			echo "  ℹ️  Assembly analysis still available in .asm files"; \
+		fi; \
+		echo ""; \
+		echo "⏱️  Runtime Performance Test:"; \
+		if [ -f $$base.O$(LOW).bin ] && [ -f $$base.O$(HIGH).bin ]; then \
+			echo "  🏃 Testing performance (1,000 iterations)..."; \
+			echo "  📊 O$(LOW) timing:"; \
+			low_time=$$(bash -c "time -p sh -c 'for i in \$$(seq 1 1000); do ./$$base.O$(LOW).bin >/dev/null 2>&1; done' 2>&1 | grep real | awk '{print \$$2}'" || echo "0"); \
+			echo "  📊 O$(HIGH) timing:"; \
+			high_time=$$(bash -c "time -p sh -c 'for i in \$$(seq 1 1000); do ./$$base.O$(HIGH).bin >/dev/null 2>&1; done' 2>&1 | grep real | awk '{print \$$2}'" || echo "0"); \
+			echo "  📊 Performance Results:"; \
+			printf "    O$(LOW): %.4fs (1k runs)\n" $$low_time; \
+			printf "    O$(HIGH): %.4fs (1k runs)\n" $$high_time; \
+			if [ "$$(echo "$$low_time > $$high_time && $$high_time > 0.001" | bc -l 2>/dev/null)" = "1" ]; then \
+				speedup=$$(echo "scale=1; ($$low_time - $$high_time) * 100 / $$low_time" | bc -l 2>/dev/null || echo "0"); \
+				ratio=$$(echo "scale=2; $$low_time / $$high_time" | bc -l 2>/dev/null || echo "1"); \
+				echo "  ✨ O$(HIGH) is $$speedup% faster ($$ratio x speedup)"; \
+			elif [ "$$(echo "$$high_time > $$low_time && $$low_time > 0.001" | bc -l 2>/dev/null)" = "1" ]; then \
+				slowdown=$$(echo "scale=1; ($$high_time - $$low_time) * 100 / $$low_time" | bc -l 2>/dev/null || echo "0"); \
+				ratio=$$(echo "scale=2; $$high_time / $$low_time" | bc -l 2>/dev/null || echo "1"); \
+				echo "  📉 O$(HIGH) is $$slowdown% slower ($$ratio x slower)"; \
+			else \
+				echo "  ➡️  Performance difference too small to measure reliably"; \
+			fi; \
+		else \
+			echo "  ❌ Cannot test runtime (binaries not available)"; \
+			echo "  ℹ️  Try with files that compile to executables"; \
+		fi; \
+		echo "🔍 Assembly Instruction Analysis:"; \
+		low_total=$$(grep -v "^[[:space:]]*\." $$base.O$(LOW).asm | grep -v "^[[:space:]]*$$" | wc -l); \
+		high_total=$$(grep -v "^[[:space:]]*\." $$base.O$(HIGH).asm | grep -v "^[[:space:]]*$$" | wc -l); \
+		echo "  Instructions O$(LOW): $$low_total, O$(HIGH): $$high_total"; \
+		if [ "$$high_total" -lt "$$low_total" ]; then \
+			reduction=$$((100 * (low_total - high_total) / low_total)); \
+			echo "  ✨ O$(HIGH) reduced instructions by $$reduction%"; \
+		elif [ "$$high_total" -gt "$$low_total" ]; then \
+			increase=$$((100 * (high_total - low_total) / low_total)); \
+			echo "  📈 O$(HIGH) increased instructions by $$increase% (possibly loop unrolling)"; \
+		else \
+			echo "  ➡️  Same instruction count"; \
+		fi; \
+		echo ""; \
+	done
+	@echo "✅ Optimization level comparison complete!"
+	@echo "📊 Check *.O$(LOW)-vs-O$(HIGH).diff files for detailed changes"
 
 # Build executables (optional)
 executables: $(TARGETS)
@@ -308,10 +297,10 @@ executables: $(TARGETS)
 
 # Define flags safe for memory analysis (remove ARM64 kernel-specific flags)
 MEMORY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
-                     -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
-                     -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
-                     -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
-                     -Werror=designated-init -Werror=implicit-function-declaration
+	             -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
+	             -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
+	             -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
+	             -Werror=designated-init -Werror=implicit-function-declaration
 
 # AddressSanitizer build and test
 asan:

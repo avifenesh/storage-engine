@@ -11,7 +11,7 @@
 
 # Object files
 *.o
-
+*.bin
 *.*.s
 *.*.S
 *.*.diff
