@@ -2,8 +2,6 @@
 
 ## 📅 Sprint 1: C Core Refresh & Memory Fundamentals
 
-- Learn and practice function pointers (callback dispatcher) ([guide](https://www.geeksforgeeks.org/function-pointer-in-c/))
-
 - Setup Makefile with proper flags and GDB integration ([makefile tutorial](https://makefiletutorial.com/), [GDB cheat sheet](https://darkdust.net/files/GDB%20Cheat%20Sheet.pdf), [valgrind guide](https://valgrind.org/docs/manual/quick-start.html))
 
 ## 📅 Sprint 2: System Programming – IOCTL & Char Devices
@@ -40,7 +38,7 @@
 
 ## 🚧 In Progress
 
-- Build aligned struct for 128-bit vectors ([docs](https://www.kernel.org/doc/html/latest/core-api/unlocked-mm.html))
+- Learn and practice function pointers (callback dispatcher) ([guide](https://www.geeksforgeeks.org/function-pointer-in-c/))
 
 ## ✅ Done
 
@@ -49,4 +47,6 @@
 - Build dynamic array (malloc, realloc, free) ([tutorial](https://www.learn-c.org/en/Dynamic_memory))
 
 - Study memory alignment and struct padding ([reference](https://www.geeksforgeeks.org/data-structure-alignment-in-c/))
+
+- Build aligned struct for 128-bit vectors with NEON SIMD support ([code](128_aligned_vec.c))
 
