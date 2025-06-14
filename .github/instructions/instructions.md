@@ -91,13 +91,51 @@ gh project view <project_number> --owner <username>
 # List project items
 gh project item-list <project_number> --owner <username>
 
-# Update project item status
+# Get project field information (including field IDs)
+gh project field-list <project_number> --owner <username>
+
+# Get status field options with IDs
+gh api graphql -f query='
+  query($owner: String!, $number: Int!) {
+    user(login: $owner) {
+      projectV2(number: $number) {
+        fields(first: 20) {
+          nodes {
+            ... on ProjectV2SingleSelectField {
+              name
+              id
+              options {
+                id
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }' -f owner=<username> -F number=<project_number>
+
+# Update project item status (move between columns)
 gh project item-edit --project-id <PROJECT_ID> --id <ITEM_ID> --field-id <FIELD_ID> --single-select-option-id <STATUS_ID>
+
+# Complete workflow example for closing issue and moving to Done:
+# 1. Close issue with completion comment
+gh issue close 4 --comment "✅ Completed! Implementation available in file.c"
+
+# 2. Move to Done status in project board  
+gh project item-edit --project-id PVT_kwHOA1QvYc4A7GKO --id <ITEM_ID> --field-id PVTSSF_lAHOA1QvYc4A7GKOzgvfubI --single-select-option-id 98236657
 
 # Available status options in our project:
 # - Backlog (f75ad846)
 # - Ready (61e4505c) 
 # - In progress (47fc9ee4)
+# - In review (df73e18b)
+# - Done (98236657)
+
+# Project-specific IDs for kernel-vss-c-refresher (Project #3):
+# - Project ID: PVT_kwHOA1QvYc4A7GKO
+# - Status Field ID: PVTSSF_lAHOA1QvYc4A7GKOzgvfubI
+```
 # - In review (df73e18b)
 # - Done (98236657)
 ```
