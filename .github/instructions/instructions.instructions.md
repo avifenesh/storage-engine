@@ -149,20 +149,20 @@ gh project item-edit --project-id PVT_kwHOA1QvYc4A7GKO --id <ITEM_ID> --field-id
 - **Project**: "kernel-vss-c-refresher" (Project #3)
 - **Repository**: avifenesh/C-refresher
 - **Issues**: 19 total, tracking sprint tasks
-- **Kanban Board**: C-fast-track-kanban.md with embedded reference links
+- **Kanban Board**: docs/kanban.md with embedded reference links
 
 ## Code Examples & Patterns
 
 ### Current C Files Context:
-- `hello_world.c` - Basic compilation test
-- `print_address.c` - Pointer and address manipulation (Issue #1 - COMPLETED)
-- `some_simple_types_and_and_pritntf.c` - Basic types and printf
-- `sizeofp.c` - Memory size operations
-- `increametnt.c` - Basic operations
-- `dynamic_array.c` - Dynamic array implementation with malloc/realloc/free (Issue #2 - COMPLETED)
-- `128_aligned_vec.c` - 128-bit aligned vector structure with ARM NEON (Issue #4 - COMPLETED)
-- `vec_dispatcher.c` - Function pointer callback dispatcher (Issue #5 - IN PROGRESS)
-- `LEARNING_PROGRESS.md` - Learning progress tracking file
+- `sprint-1-core-memory/hello_world.c` - Basic compilation test
+- `sprint-1-core-memory/print_address.c` - Pointer and address manipulation (Issue #1 - COMPLETED)
+- `sprint-1-core-memory/some_simple_types_and_and_pritntf.c` - Basic types and printf
+- `sprint-1-core-memory/sizeofp.c` - Memory size operations
+- `sprint-1-core-memory/increametnt.c` - Basic operations
+- `sprint-1-core-memory/dynamic_array.c` - Dynamic array implementation with malloc/realloc/free (Issue #2 - COMPLETED)
+- `sprint-1-core-memory/128_aligned_vec.c` - 128-bit aligned vector structure with ARM NEON (Issue #4 - COMPLETED)
+- `sprint-1-core-memory/vec_dispatcher.c` - Function pointer callback dispatcher (Issue #5 - IN PROGRESS)
+- `docs/LEARNING_PROGRESS.md` - Learning progress tracking file
 
 ### Memory Management Patterns:
 ```c

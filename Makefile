@@ -29,8 +29,9 @@ BINARY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compa
                      -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
                      -Werror=designated-init -Werror=implicit-function-declaration
 
-# Automatically find all .c files
-SOURCES = $(wildcard *.c)
+# Automatically find all .c files in sprint folders
+SPRINT_DIRS = sprint-1-core-memory sprint-2-system-programming sprint-3-performance-simd sprint-4-kernel-memory
+SOURCES = $(wildcard $(addsuffix /*.c,$(SPRINT_DIRS)))
 ASSEMBLY = $(SOURCES:.c=.s)
 OBJECTS = $(SOURCES:.c=.o)
 TARGETS = $(SOURCES:.c=)
