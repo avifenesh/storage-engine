@@ -1,0 +1,11 @@
+{
+    "github.copilot.chat.codesearch.enabled": true,
+    "github.copilot.chat.agent.thinkingTool": true,
+    "github.copilot.chat.editor.temporalContext.enabled": true,
+    "github.copilot.chat.edits.temporalContext.enabled": true,
+    "github.copilot.chat.generateTests.codeLens": true,
+    "github.copilot.chat.languageContext.fix.typescript.enabled": false,
+    "github.copilot.chat.newWorkspaceCreation.enabled": false,
+    "editor.defaultFormatter": "xaver.clang-format",
+    "editor.defaultFoldingRangeProvider": "ms-vscode.cpptools"
+}

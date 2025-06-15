@@ -1,6 +1,9 @@
 ---
 applyTo: '**'
 ---
+Coding standards, domain knowledge, and preferences that AI should follow.---
+applyTo: '**'
+---
 # C-Refresher Repository - Copilot Instructions
 
 ## Project Context & Goals
@@ -22,6 +25,8 @@ This repository is a C knowledge refresher project focused on systems programmin
 - Use ARM NEON SIMD intrinsics for vector operations when optimizing
 - Always include proper error handling and bounds checking
 - Use `void *` for generic pointer casting and include proper type safety
+- When a function doesn't take any params use explicit `void`
+- Consider any possible optimization, even when it is about one statment that can be done more efficiently
 
 ### Kernel Programming:
 - Use miscdevice interface for character device creation
@@ -47,11 +52,11 @@ This repository is a C knowledge refresher project focused on systems programmin
 
 ### Sprint 1: C Core Refresh & Memory Fundamentals
 - ✅ Review pointer operations in C (Issue #1 - COMPLETED)
-- 🔄 Build dynamic array (malloc, realloc, free) (Issue #2 - IN PROGRESS)
-- Study memory alignment and struct padding (Issue #3)
-- Build aligned struct for 128-bit vectors (Issue #4)
-- Learn function pointers for callback dispatchers (Issue #5)
-- Setup Makefile with GDB integration (Issue #6)
+- ✅ Build dynamic array (malloc, realloc, free) (Issue #2 - COMPLETED)
+- ✅ Study memory alignment and struct padding (Issue #3 - COMPLETED)
+- ✅ Build aligned struct for 128-bit vectors (Issue #4 - COMPLETED)
+- 🔄 Learn function pointers for callback dispatchers (Issue #5 - IN PROGRESS)
+- 📋 Setup Makefile with GDB integration (Issue #6 - PENDING)
 
 ### Sprint 2: System Programming – IOCTL & Char Devices  
 - Build basic char device with miscdevice interface (Issue #7)
@@ -150,10 +155,14 @@ gh project item-edit --project-id PVT_kwHOA1QvYc4A7GKO --id <ITEM_ID> --field-id
 
 ### Current C Files Context:
 - `hello_world.c` - Basic compilation test
-- `print_address.c` - Pointer and address manipulation
+- `print_address.c` - Pointer and address manipulation (Issue #1 - COMPLETED)
 - `some_simple_types_and_and_pritntf.c` - Basic types and printf
 - `sizeofp.c` - Memory size operations
 - `increametnt.c` - Basic operations
+- `dynamic_array.c` - Dynamic array implementation with malloc/realloc/free (Issue #2 - COMPLETED)
+- `128_aligned_vec.c` - 128-bit aligned vector structure with ARM NEON (Issue #4 - COMPLETED)
+- `vec_dispatcher.c` - Function pointer callback dispatcher (Issue #5 - IN PROGRESS)
+- `LEARNING_PROGRESS.md` - Learning progress tracking file
 
 ### Memory Management Patterns:
 ```c
@@ -194,6 +203,14 @@ ptr = NULL; // Prevent use-after-free
 ## Learning Resources Integration
 
 When suggesting code or explaining concepts, reference the embedded links from the Kanban board and provide practical examples that work with the existing ARM64 kernel-style build configuration.
+
+## Learning guidelines
+
+- Don't offer explicit code solutions but provide information needed for understanding
+- The goal for the issues and tasks is to practice and learn, any action you take need to be explained and include context and information to give a knowledgable picture
+- The only times where explicit code output is allowed are when explicity been asked, or for educetional porpuses, and not for challenge soloving itself.
+- Don't assume that a term or a subject is known, for example when using a library, a build flag, an std function, an error message, etc. all need to be explained in detail, unless where already explained or when understanding is clear.
+- Create a learning progress markdown file, and fill it during progress with subject learned and example. Keep it informative, and ready for re-reading in case a refresh needed. 
 
 ## Error Handling Standards
 
