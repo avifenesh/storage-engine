@@ -17,4 +17,4 @@ typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_DOUBLE } data_type_t;
 // multiplie
 // dot product
 
-void add(void *a, void *b, void *result) { *((float16_t *)) }
+// void add(void *a, void *b, void *result) { *((float16_t *)) }
