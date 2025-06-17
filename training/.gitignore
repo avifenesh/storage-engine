@@ -1,2 +1,6 @@
 hello-world/
-*/.exercism
+**/.exercism/
+**/*.md
+*.out
+test-framework/
+test*

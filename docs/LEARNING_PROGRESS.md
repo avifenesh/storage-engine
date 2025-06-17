@@ -154,6 +154,13 @@ CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
 
 ---
 
+## Additional Practice Resources
+- **Training Exercises**: Located in `training/` folder
+- **C Track**: Exercises complementing kernel programming concepts
+- **Rust Track**: Practice for user-space client development
+
+---
+
 ## Next Steps
 
 ### Immediate Actions:
