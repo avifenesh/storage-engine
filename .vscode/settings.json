@@ -10,6 +10,7 @@
     "editor.defaultFoldingRangeProvider": "ms-vscode.cpptools",
     "files.associations": {
         "*.toml": "toml",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "type_traits": "c"
     }
 }
