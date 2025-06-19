@@ -12,5 +12,7 @@
         "*.toml": "toml",
         "stdio.h": "c",
         "type_traits": "c"
-    }
+    },
+    "vim.statusBarColors.commandlineinprogress": "#FFA500",
+    "vim.autoindent": true
 }
