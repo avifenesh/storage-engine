@@ -1,5 +1,5 @@
 #include "difference_of_squares.h"
-
+// For the exercise 2 will be an ERROR code
 unsigned int sum_of_squares(unsigned int number) {
   if (number >= 1291) // if number is larger than 1291, the result will overflow
     return OVERFLOW;
