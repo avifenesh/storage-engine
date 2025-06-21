@@ -1,26 +1,19 @@
 #include "space_age.h"
+#define SECONDS_PER_EARTH_YEAR (365.25f * 24 * 60 * 60)
 
-// Precalculated reciprocals to avoid division
-// For the CPU division is expensive, and better to avoid.
-// While the diff is neglegedable in most cases, the goal of the learning is databse and kernel programming and each cpu cycle matter.
-// earth_year_in_secondes = 31557600
-// Planet X * earth year secondes = planet X year in secondes
-// 1.0f / planet X year in secondes = desired multiplyer to get the age
-const float orbital_reciprocals[] = {
-    1.315e-7f,  // MERCURY
-    5.151e-8f,  // VENUS
-    3.169e-8f,  // EARTH
-    1.685e-8f,  // MARS
-    2.671e-9f,  // JUPITER
-    1.076e-9f,  // SATURN
-    3.771e-10f, // URANUS
-    1.923e-10f  // NEPTUNE
+static const float ORBITAL_RECIPROCALS[] = {
+    [MERCURY] = 1.0f / (0.2408467f * SECONDS_PER_EARTH_YEAR),
+    [VENUS]   = 1.0f / (0.61519726f * SECONDS_PER_EARTH_YEAR),
+    [EARTH]   = 1.0f / (1.0f * SECONDS_PER_EARTH_YEAR),
+    [MARS]    = 1.0f / (1.8808158f * SECONDS_PER_EARTH_YEAR),
+    [JUPITER] = 1.0f / (11.862615f * SECONDS_PER_EARTH_YEAR),
+    [SATURN]  = 1.0f / (29.447498f * SECONDS_PER_EARTH_YEAR),
+    [URANUS]  = 1.0f / (84.016846f * SECONDS_PER_EARTH_YEAR),
+    [NEPTUNE] = 1.0f / (164.79132f * SECONDS_PER_EARTH_YEAR)
 };
 
-float age(planet_t planet, int64_t seconds){
-    if(seconds < 0 || planet < 0 || planet > 7)
-        return INVALID_INPUT;
-    if(seconds == 0)
-        return 0.0f;
-    return seconds * orbital_reciprocals[planet];
+float age(planet_t planet, int64_t seconds) {
+  if (seconds < 0 || planet < 0 || planet > 7)
+    return INVALID_INPUT;
+  return seconds * ORBITAL_RECIPROCALS[planet];
 }
