@@ -18,6 +18,6 @@ typedef enum {
 
 typedef enum { NULL_ARRAY = 404, INVALID_VAL = 405 } error_code_t;
 
-uint16_t color_code(resistor_band_t colors[]);
+uint16_t color_code(resistor_band_t colors[static 2]);
 
 #endif

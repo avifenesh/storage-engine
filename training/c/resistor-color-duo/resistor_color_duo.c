@@ -1,9 +1,6 @@
 #include "resistor_color_duo.h"
 
-uint16_t color_code(resistor_band_t colors[]){
-  if (colors == NULL)
-    return NULL_ARRAY;
-
+uint16_t color_code(resistor_band_t colors[static 2]) {
   // This check is a best effort check, the Array might
   // contain garbage data which is inbound somehow. A lot
   // of bad luck, but the tests force me to use the same
