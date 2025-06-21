@@ -14,5 +14,7 @@
         "type_traits": "c"
     },
     "vim.statusBarColors.commandlineinprogress": "#FFA500",
-    "vim.autoindent": true
+    "vim.autoindent": true,
+    "vim.vimrc.enable": true,
+    "vim.vimrc.path": "$HOME/.vimrc"
 }
