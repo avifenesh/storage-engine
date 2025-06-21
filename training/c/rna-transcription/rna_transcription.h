@@ -2,8 +2,8 @@
 #define RNA_TRANSCRIPTION_H
 
 #include <ctype.h>
-#include <stddef.h>
-#define INVALID_INPUT (char)(-1)
+#include <stdlib.h>
+#define INVALID "Invlid Input"
 char *to_rna(const char *dna);
 
 #endif
