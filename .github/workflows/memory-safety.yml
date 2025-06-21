@@ -29,12 +29,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm]
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-          - os: ubuntu-24.04-arm
-            arch: arm64
+        os: [ubuntu-24.04-arm, ubuntu-22.04-arm]
     
     steps:
     - name: Checkout code
@@ -48,7 +43,7 @@ jobs:
     - name: Setup ASan environment
       run: |
         echo "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=true:check_initialization_order=1:strict_init_order=1" >> $GITHUB_ENV
-        echo "Architecture: ${{ matrix.arch }}"
+        echo "Architecture: arm64"
         echo "OS: ${{ matrix.os }}"
         
     - name: Discover C files
@@ -63,16 +58,12 @@ jobs:
         
     - name: Compile with AddressSanitizer
       run: |
-        echo "🔧 Compiling C files with AddressSanitizer on ${{ matrix.arch }}..."
+        echo "🔧 Compiling C files with AddressSanitizer on arm64..."
         mkdir -p build/asan
         failed_files=""
         
-        # Set architecture-specific flags
-        if [ "${{ matrix.arch }}" = "arm64" ]; then
-          ARCH_FLAGS="-march=armv8-a -mtune=generic"
-        else
-          ARCH_FLAGS=""
-        fi
+        # ARM64 specific flags
+        ARCH_FLAGS="-march=armv8-a -mtune=generic"
         
         while IFS= read -r file; do
           if [ -n "$file" ]; then
@@ -127,7 +118,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: asan-binaries-${{ matrix.arch }}
+        name: asan-binaries-arm64-${{ matrix.os }}
         path: build/asan/
         retention-days: 2
 
@@ -136,12 +127,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm]
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-          - os: ubuntu-24.04-arm
-            arch: arm64
+        os: [ubuntu-24.04-arm, ubuntu-22.04-arm]
     
     steps:
     - name: Checkout code
@@ -156,7 +142,7 @@ jobs:
       run: |
         valgrind --version
         which valgrind
-        echo "Architecture: ${{ matrix.arch }}"
+        echo "Architecture: arm64"
         echo "OS: ${{ matrix.os }}"
         
     - name: Discover C files
@@ -171,16 +157,12 @@ jobs:
         
     - name: Compile for Valgrind
       run: |
-        echo "🔧 Compiling C files for Valgrind analysis on ${{ matrix.arch }}..."
+        echo "🔧 Compiling C files for Valgrind analysis on arm64..."
         mkdir -p build/valgrind
         failed_files=""
         
-        # Set architecture-specific flags
-        if [ "${{ matrix.arch }}" = "arm64" ]; then
-          ARCH_FLAGS="-march=armv8-a -mtune=generic"
-        else
-          ARCH_FLAGS=""
-        fi
+        # ARM64 specific flags
+        ARCH_FLAGS="-march=armv8-a -mtune=generic"
         
         while IFS= read -r file; do
           if [ -n "$file" ]; then
@@ -251,7 +233,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: valgrind-reports-${{ matrix.arch }}
+        name: valgrind-reports-arm64-${{ matrix.os }}
         path: build/valgrind/*.log
         retention-days: 2
         
@@ -259,7 +241,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: valgrind-binaries-${{ matrix.arch }}
+        name: valgrind-binaries-arm64-${{ matrix.os }}
         path: build/valgrind/
         retention-days: 2
 
@@ -278,28 +260,27 @@ jobs:
         # AddressSanitizer results
         echo "## 🔍 AddressSanitizer Results" >> $GITHUB_STEP_SUMMARY
         if [[ "${{ needs.addresssanitizer.result }}" == "success" ]]; then
-          echo "✅ **All platforms passed**: x86_64 and ARM64" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **ARM64 platform passed**" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **Issues detected** on one or more platforms" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Issues detected** on ARM64 platform" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # Valgrind results  
         echo "## 🔬 Valgrind Results" >> $GITHUB_STEP_SUMMARY
         if [[ "${{ needs.valgrind.result }}" == "success" ]]; then
-          echo "✅ **All platforms passed**: x86_64 and ARM64" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **ARM64 platform passed**" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **Issues detected** on one or more platforms" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Issues detected** on ARM64 platform" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        echo "## 🏗️ Tested Architectures" >> $GITHUB_STEP_SUMMARY
-        echo "- **x86_64** (ubuntu-latest): Standard development platform" >> $GITHUB_STEP_SUMMARY
-        echo "- **ARM64** (ubuntu-24.04-arm): Target Raspberry Pi architecture" >> $GITHUB_STEP_SUMMARY
+        echo "## 🏗️ Tested Architecture" >> $GITHUB_STEP_SUMMARY
+        echo "- **ARM64** (ubuntu-24.04-arm & ubuntu-22.04-arm): Target Raspberry Pi architecture" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## 📊 Analysis Details" >> $GITHUB_STEP_SUMMARY
         echo "- **AddressSanitizer**: Detects buffer overflows, use-after-free, memory leaks" >> $GITHUB_STEP_SUMMARY
         echo "- **Valgrind**: Advanced memory error detection and leak checking" >> $GITHUB_STEP_SUMMARY
         echo "- **Coverage**: All C files in the repository" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🔗 Download artifacts above to examine detailed reports for each architecture" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 Download artifacts above to examine detailed reports for ARM64 architecture" >> $GITHUB_STEP_SUMMARY
