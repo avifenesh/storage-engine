@@ -1,41 +1,33 @@
 #include "rna_transcription.h"
-#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 char *to_rna(const char *dna) {
-  if (dna == NULL || isspace(*dna))
-    return "";
-
-  char *rna = malloc(2 * sizeof(char));
-  int capacity = 2;
-  int size = 0;
-
+  if (dna == NULL)
+    return NULL;
+  int charIndex = 0;
+  char *rna = malloc(strlen(dna) + 1);
   while (*dna != '\0') {
-    if (isspace(*dna))
-      return INVALID;
-
-    if (capacity <= size) {
-      rna = (char *)realloc(rna, capacity * 2 * (sizeof(char)));
-      capacity *= 2;
-    }
-
     switch (*dna) {
     case 'G':
-      rna[size] = 'C';
+      rna[charIndex] = 'C';
       break;
     case 'C':
-      rna[size] = 'G';
+      rna[charIndex] = 'G';
       break;
     case 'T':
-      rna[size] = 'A';
+      rna[charIndex] = 'A';
       break;
     case 'A':
-      rna[size] = 'U';
+      rna[charIndex] = 'U';
       break;
     default:
-      return INVALID;
+      free(rna);
+      return NULL;
     }
     dna++;
-    size++;
+    charIndex++;
   }
-  rna[size] = '\0';
+  rna[charIndex] = '\0';
   return rna;
 }
