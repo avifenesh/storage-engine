@@ -1,5 +1,7 @@
 #ifndef DARTS_H
 #define DARTS_H
+#include <float.h>
+#include <math.h>
 
 typedef struct {
    float x;
@@ -7,14 +9,8 @@ typedef struct {
 } coordinate_t;
 
 int score(coordinate_t landing_position);
-float square_distance_from_center(coordinate_t landing_position);
-
-typedef enum {
-   SQUARED_OUTER_CIRCLE_RADIUS = 100,
-   SQUARED_MIDDLE_CIRCLE_RADIUS = 25,
-   SQUARED_INNER_CIRCLE_RADIUS = 1
-} squared_radius_t;
 
 #define TOO_FAR_ERROR -1
+#define OVERFLOW -1.0
 
 #endif
