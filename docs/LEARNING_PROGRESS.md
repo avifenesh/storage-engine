@@ -41,6 +41,7 @@ Building a **kernel-accelerated hybrid database engine** for vector similarity s
 ## 📚 Learning Resources
 - **Main Kanban**: [C-fast-track-kanban.md](C-fast-track-kanban.md)
 - **Enhanced Resources**: [ENHANCED_LEARNING_RESOURCES.md](ENHANCED_LEARNING_RESOURCES.md)
+- **Training Exercises**: [../training/c/](../training/c/) - C programming practice exercises from Exercism
 - **GitHub Issues**: https://github.com/avifenesh/C-refresher/issues
 
 ---

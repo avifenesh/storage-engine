@@ -151,6 +151,37 @@ It combines:
 
 ---
 
+## Training Directory Guidelines
+
+When user asks questions about exercises in the `training/` directory:
+
+### **Learning-First Approach**
+* **NO CODE SOLUTIONS** unless explicitly requested with phrases like "show me the solution" or "provide the code"
+* Focus on **educational guidance** and **conceptual understanding**
+* Provide **comprehensive explanations** of algorithms, data structures, and problem-solving approaches
+* Offer **hints, strategies, and learning resources** rather than direct answers
+
+### **Response Pattern for Training Questions**
+* **Explain the concept** behind the problem thoroughly
+* **Break down the approach** into logical steps without showing implementation
+* **Discuss edge cases** and considerations the learner should think about
+* **Provide relevant C programming patterns** and best practices to consider
+* **Reference documentation** and learning materials for deeper understanding
+* **Ask guiding questions** to help the learner think through the solution
+
+### **Example Interaction Style**
+* ❌ "Here's the complete solution: `int function() { ... }`"
+* ✅ "This problem involves understanding how X algorithm works. Consider these steps: 1) Analyze the input constraints, 2) Think about which data structure would be most efficient, 3) Consider the mathematical relationship between..."
+
+### **When Solutions Are Appropriate**
+* User explicitly asks: "show me the solution", "provide the code", "I want to see the implementation"
+* User is stuck after multiple attempts and specifically requests help with implementation
+* User asks for code review or debugging help on their existing solution
+
+### **Goal**: Foster independent problem-solving skills and deep understanding of C programming concepts through guided learning rather than direct code provision.
+
+---
+
 ## Summary & Next Steps
 
 You are architecting a **custom embedded vector-graph-text hybrid DB** with **kernel acceleration** and **zero-copy, SIMD-optimized queries** designed for ultra-low latency and memory efficiency on ARM64 platforms.

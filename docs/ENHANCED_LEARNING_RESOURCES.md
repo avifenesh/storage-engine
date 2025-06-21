@@ -2,6 +2,16 @@
 
 ## 🎯 Updated Learning Path for Multi-Modal System
 
+### **Foundation Practice** ⏱️ ~10 hours
+**Why First**: Hands-on C programming practice to reinforce fundamentals
+
+**Training Exercises** ([../training/c/](../training/c/)):
+- Practice C fundamentals with Exercism exercises (comprehensive set)
+- Focus on algorithms, mathematics, and problem-solving
+- Apply concepts learned in theoretical study
+- Build muscle memory for C syntax and patterns
+- **Approach**: Can be done in parallel with theory phases or as dedicated practice time
+
 ### **Phase 1: Graph Algorithms & Data Structures** ⏱️ ~3 hours
 **Why First**: Foundation for graph traversal component of hybrid engine
 
@@ -218,9 +228,10 @@
 ## 🔗 Quick Reference Links
 
 ### **Immediate Action Items (Today)**:
-1. **Start Here**: https://nlp.stanford.edu/IR-book/html/htmledition/a-first-take-at-building-an-inverted-index-1.html
-2. **Then**: https://people.csail.mit.edu/jshun/6506-s20/lectures/lecture1.pdf
-3. **Practice**: Apply to existing `vec_dispatcher.c` with graph operations
+1. **Practice First**: Complete 1-2 exercises from [../training/c/](../training/c/) to warm up
+2. **Start Here**: https://nlp.stanford.edu/IR-book/html/htmledition/a-first-take-at-building-an-inverted-index-1.html
+3. **Then**: https://people.csail.mit.edu/jshun/6506-s20/lectures/lecture1.pdf
+4. **Practice**: Apply to existing `vec_dispatcher.c` with graph operations
 
 ### **Advanced Kernel Programming**:
 - **Zero-Copy Examples**: https://github.com/torvalds/linux/blob/master/fs/splice.c

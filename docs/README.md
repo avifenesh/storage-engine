@@ -9,6 +9,9 @@
 ### **Learning Resources**
 - **[ENHANCED_LEARNING_RESOURCES.md](ENHANCED_LEARNING_RESOURCES.md)** - Comprehensive learning materials for multi-modal system development
 
+### **Training Exercises**
+- **[../training/c/](../training/c/)** - C programming practice exercises from Exercism covering algorithms, mathematics, and problem-solving
+
 ### **Detailed Sprint Information**
 - **[sprints/sprint-1-c-core-memory.md](sprints/sprint-1-c-core-memory.md)** - C fundamentals and memory management
 - **[sprints/sprint-2-system-programming.md](sprints/sprint-2-system-programming.md)** - IOCTL and character devices
@@ -20,5 +23,6 @@
 
 **For Project Status**: Start with [C-fast-track-kanban.md](C-fast-track-kanban.md)  
 **For Learning**: Check [ENHANCED_LEARNING_RESOURCES.md](ENHANCED_LEARNING_RESOURCES.md)  
+**For Practice**: Browse [../training/c/](../training/c/) for hands-on exercises  
 **For Technical Details**: Reference individual sprint files  
 **For Quick Updates**: Use [LEARNING_PROGRESS.md](LEARNING_PROGRESS.md)

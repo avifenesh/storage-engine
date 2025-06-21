@@ -8,6 +8,7 @@ on:
       - '**.h'
       - 'Makefile'
       - '.github/workflows/memory-safety.yml'
+      - '!training/**'
   pull_request:
     branches: [main]
     paths: 
@@ -15,6 +16,7 @@ on:
       - '**.h'
       - 'Makefile'
       - '.github/workflows/memory-safety.yml'
+      - '!training/**'
   workflow_dispatch:
 
 env:
