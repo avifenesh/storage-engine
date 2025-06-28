@@ -6,7 +6,7 @@
 #define MAX_STR_LEN sizeof("##:##")
 
 typedef struct {
-   char text[MAX_STR_LEN];
+  char text[MAX_STR_LEN];
 } clock_t;
 
 clock_t clock_create(int hour, int minute);
