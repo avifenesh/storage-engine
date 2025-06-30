@@ -23,6 +23,12 @@
 #include <assert.h>
 #endif
 
+/* C99-compatible static assertion */
+#ifndef _Static_assert
+#define _Static_assert(condition, message)                                     \
+  typedef char static_assertion_##__LINE__[(condition) ? 1 : -1]
+#endif
+
 /* Time calculation constants */
 #define MINUTES_PER_DAY 1440
 #define HOURS_PER_DAY 24
