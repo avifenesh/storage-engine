@@ -3,10 +3,8 @@
 
 #include <stdbool.h>
 
-#define MAX_STR_LEN sizeof("##:##")
-
 typedef struct {
-  char text[MAX_STR_LEN];
+  char text[6];
 } clock_t;
 
 clock_t clock_create(int hour, int minute);
