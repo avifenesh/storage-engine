@@ -2,8 +2,8 @@
 
 int main(void)
 {
-int i = 10;
+	int i = 10;
 
-printf("The value of i is %d\n", i);
-printf("The address of i is %p\n", (void *)&i);
+	printf("The value of i is %d\n", i);
+	printf("The address of i is %p\n", (void *)&i);
 }

@@ -16,5 +16,8 @@
     "vim.statusBarColors.commandlineinprogress": "#FFA500",
     "vim.autoindent": true,
     "vim.vimrc.enable": true,
-    "vim.vimrc.path": "$HOME/.vimrc"
+    "vim.vimrc.path": "$HOME/.vimrc",
+    "[c]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools"
+    }
 }
