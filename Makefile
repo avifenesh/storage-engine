@@ -32,6 +32,8 @@ BINARY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compa
 # Automatically find all .c files in sprint folders
 SPRINT_DIRS = sprint-1-core-memory sprint-2-system-programming sprint-3-performance-simd sprint-4-kernel-memory
 SOURCES = $(wildcard $(addsuffix /*.c,$(SPRINT_DIRS)))
+HEADERS = $(wildcard $(addsuffix /*.h,$(SPRINT_DIRS)))
+FORMAT_FILES = $(SOURCES) $(HEADERS)
 ASSEMBLY = $(SOURCES:.c=.s)
 OBJECTS = $(SOURCES:.c=.o)
 TARGETS = $(SOURCES:.c=)
@@ -294,7 +296,7 @@ executables: $(TARGETS)
 	@echo "✅ Built executables: $(TARGETS)"
 
 # Memory safety analysis targets
-.PHONY: asan valgrind memory-check memory-clean
+.PHONY: asan valgrind memory-check memory-clean format format-check install-hooks
 
 # Define flags safe for memory analysis (remove ARM64 kernel-specific flags)
 MEMORY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
@@ -307,44 +309,106 @@ MEMORY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compa
 asan:
 	@echo "🛡️  Building with AddressSanitizer..."
 	@mkdir -p build/asan
-	@for file in $(SOURCES); do \
+	@failed_files=""; \
+	executable_count=0; \
+	object_count=0; \
+	for file in $(SOURCES); do \
 		base=$$(basename $$file .c); \
 		echo "Compiling $$file with ASan..."; \
-		$(CC) $(MEMORY_SAFE_CFLAGS) \
+		if $(CC) $(MEMORY_SAFE_CFLAGS) \
 			-fsanitize=address -fno-omit-frame-pointer -O1 \
-			-o build/asan/$$base $$file || exit 1; \
-	done
+			-o build/asan/$$base $$file 2>/dev/null; then \
+			echo "✅ Successfully compiled $$file as executable"; \
+			executable_count=$$((executable_count + 1)); \
+		elif $(CC) $(MEMORY_SAFE_CFLAGS) \
+			-fsanitize=address -fno-omit-frame-pointer -O1 \
+			-c -o build/asan/$$base.o $$file 2>&1; then \
+			echo "✅ Successfully compiled $$file as object file (no main function)"; \
+			object_count=$$((object_count + 1)); \
+		else \
+			echo "❌ Failed to compile $$file"; \
+			failed_files="$$failed_files $$file"; \
+		fi; \
+	done; \
+	if [ -n "$$failed_files" ]; then \
+		echo "Failed to compile:$$failed_files"; \
+		exit 1; \
+	fi; \
+	echo "📊 ASan Summary: $$executable_count executables, $$object_count object files"
 	@echo "✅ ASan build complete"
 	@echo "🧪 Running ASan tests..."
 	@export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=true"; \
-	for exe in build/asan/*; do \
-		if [ -x "$$exe" ]; then \
-			echo "Testing $$exe..."; \
-			timeout 30s $$exe || echo "❌ Issues detected in $$exe"; \
-		fi; \
-	done
+	executable_count=0; \
+	object_count=0; \
+	for file in build/asan/*; do \
+		case "$$file" in \
+			*.o) \
+				echo "📦 Object file: $$file (library code, no main function)"; \
+				object_count=$$((object_count + 1)); \
+				;; \
+			*) \
+				if [ -x "$$file" ]; then \
+					echo "Testing $$file..."; \
+					executable_count=$$((executable_count + 1)); \
+					timeout 30s $$file || echo "❌ Issues detected in $$file"; \
+				fi; \
+				;; \
+		esac; \
+	done; \
+	echo "📊 ASan Testing: $$executable_count executables tested, $$object_count object files compiled"
 
 # Valgrind build and test
 valgrind:
 	@echo "🛡️  Building for Valgrind analysis..."
 	@mkdir -p build/valgrind
-	@for file in $(SOURCES); do \
+	@failed_files=""; \
+	executable_count=0; \
+	object_count=0; \
+	for file in $(SOURCES); do \
 		base=$$(basename $$file .c); \
 		echo "Compiling $$file for Valgrind..."; \
-		$(CC) $(MEMORY_SAFE_CFLAGS) \
+		if $(CC) $(MEMORY_SAFE_CFLAGS) \
 			-O0 -g3 \
-			-o build/valgrind/$$base $$file || exit 1; \
-	done
+			-o build/valgrind/$$base $$file 2>/dev/null; then \
+			echo "✅ Successfully compiled $$file as executable"; \
+			executable_count=$$((executable_count + 1)); \
+		elif $(CC) $(MEMORY_SAFE_CFLAGS) \
+			-O0 -g3 \
+			-c -o build/valgrind/$$base.o $$file 2>&1; then \
+			echo "✅ Successfully compiled $$file as object file (no main function)"; \
+			object_count=$$((object_count + 1)); \
+		else \
+			echo "❌ Failed to compile $$file"; \
+			failed_files="$$failed_files $$file"; \
+		fi; \
+	done; \
+	if [ -n "$$failed_files" ]; then \
+		echo "Failed to compile:$$failed_files"; \
+		exit 1; \
+	fi; \
+	echo "📊 Valgrind Summary: $$executable_count executables, $$object_count object files"
 	@echo "✅ Valgrind build complete"
 	@echo "🧪 Running Valgrind tests..."
-	@for exe in build/valgrind/*; do \
-		if [ -x "$$exe" ]; then \
-			echo "Testing $$exe with Valgrind..."; \
-			timeout 60s valgrind --tool=memcheck --leak-check=full \
-				--show-leak-kinds=all --track-origins=yes \
-				--error-exitcode=1 $$exe || echo "❌ Issues detected in $$exe"; \
-		fi; \
-	done
+	@executable_count=0; \
+	object_count=0; \
+	for file in build/valgrind/*; do \
+		case "$$file" in \
+			*.o) \
+				echo "📦 Object file: $$file (library code, no main function)"; \
+				object_count=$$((object_count + 1)); \
+				;; \
+			*) \
+				if [ -x "$$file" ]; then \
+					echo "Testing $$file with Valgrind..."; \
+					executable_count=$$((executable_count + 1)); \
+					timeout 60s valgrind --tool=memcheck --leak-check=full \
+						--show-leak-kinds=all --track-origins=yes \
+						--error-exitcode=1 $$file || echo "❌ Issues detected in $$file"; \
+				fi; \
+				;; \
+		esac; \
+	done; \
+	echo "📊 Valgrind Testing: $$executable_count executables tested, $$object_count object files compiled"
 
 # Run both memory safety tools
 memory-check: asan valgrind
@@ -354,6 +418,83 @@ memory-check: asan valgrind
 memory-clean:
 	@echo "🧹 Cleaning memory analysis artifacts..."
 	@rm -rf build/
+
+# Code formatting targets (Linux kernel style)
+format:
+	@echo "🎨 Formatting C code with Linux kernel style..."
+	@if ! command -v clang-format >/dev/null 2>&1; then \
+		echo "❌ clang-format not found. Install with: sudo apt-get install clang-format"; \
+		exit 1; \
+	fi
+	@echo "📋 Formatting files: $(FORMAT_FILES)"
+	@for file in $(FORMAT_FILES); do \
+		echo "  🔧 Formatting $$file..."; \
+		clang-format -i --style="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false, ColumnLimit: 80, AlignTrailingComments: true, SpaceBeforeParens: ControlStatements, KeepEmptyLinesAtTheStartOfBlocks: false}" $$file; \
+	done
+	@echo "✅ Code formatting complete!"
+
+format-check:
+	@echo "🔍 Checking code formatting (Linux kernel style)..."
+	@if ! command -v clang-format >/dev/null 2>&1; then \
+		echo "❌ clang-format not found. Install with: sudo apt-get install clang-format"; \
+		exit 1; \
+	fi
+	@echo "📋 Checking files: $(FORMAT_FILES)"
+	@failed_files=""; \
+	for file in $(FORMAT_FILES); do \
+		echo "  🔍 Checking $$file..."; \
+		if ! clang-format --style="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false, ColumnLimit: 80, AlignTrailingComments: true, SpaceBeforeParens: ControlStatements, KeepEmptyLinesAtTheStartOfBlocks: false}" $$file | diff -u $$file - >/dev/null; then \
+			echo "    ❌ $$file needs formatting"; \
+			failed_files="$$failed_files $$file"; \
+		else \
+			echo "    ✅ $$file is properly formatted"; \
+		fi; \
+	done; \
+	if [ -n "$$failed_files" ]; then \
+		echo ""; \
+		echo "❌ The following files need formatting:$$failed_files"; \
+		echo "💡 Run 'make format' to fix formatting issues"; \
+		exit 1; \
+	fi
+	@echo "✅ All files are properly formatted!"
+
+# Install git hooks
+install-hooks:
+	@echo "🔗 Installing git commit hooks..."
+	@if [ ! -d .git ]; then \
+		echo "❌ Not a git repository. Run 'git init' first."; \
+		exit 1; \
+	fi
+	@mkdir -p .git/hooks
+	@mkdir -p .hooks
+	@echo "📝 Creating pre-commit hook for formatting check..."
+	@if [ ! -f .hooks/pre-commit.template ]; then \
+		echo "❌ Hook template not found. Creating it..."; \
+		mkdir -p .hooks; \
+		echo '#!/bin/bash' > .hooks/pre-commit.template; \
+		echo 'echo "🔍 Running pre-commit formatting check..."' >> .hooks/pre-commit.template; \
+		echo 'STAGED_C_FILES=$$(git diff --cached --name-only --diff-filter=ACM | grep -E "\\.(c|h)$$" || true)' >> .hooks/pre-commit.template; \
+		echo 'if [ -z "$$STAGED_C_FILES" ]; then echo "ℹ️  No C files staged"; exit 0; fi' >> .hooks/pre-commit.template; \
+		echo 'if ! command -v clang-format >/dev/null 2>&1; then echo "💡 clang-format not found, skipping..."; exit 0; fi' >> .hooks/pre-commit.template; \
+		echo 'FAILED_FILES=""' >> .hooks/pre-commit.template; \
+		echo 'STYLE="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false, ColumnLimit: 80, AlignTrailingComments: true, SpaceBeforeParens: ControlStatements, KeepEmptyLinesAtTheStartOfBlocks: false}"' >> .hooks/pre-commit.template; \
+		echo 'for file in $$STAGED_C_FILES; do' >> .hooks/pre-commit.template; \
+		echo '  if [ -f "$$file" ] && ! clang-format --style="$$STYLE" "$$file" | diff -u "$$file" - >/dev/null; then' >> .hooks/pre-commit.template; \
+		echo '    FAILED_FILES="$$FAILED_FILES $$file"' >> .hooks/pre-commit.template; \
+		echo '  fi' >> .hooks/pre-commit.template; \
+		echo 'done' >> .hooks/pre-commit.template; \
+		echo 'if [ -n "$$FAILED_FILES" ]; then' >> .hooks/pre-commit.template; \
+		echo '  echo "❌ Commit aborted! Files need formatting:$$FAILED_FILES"' >> .hooks/pre-commit.template; \
+		echo '  echo "💡 Run: make format"' >> .hooks/pre-commit.template; \
+		echo '  exit 1' >> .hooks/pre-commit.template; \
+		echo 'fi' >> .hooks/pre-commit.template; \
+		echo 'echo "✅ All staged C files are properly formatted!"' >> .hooks/pre-commit.template; \
+	fi
+	@cp .hooks/pre-commit.template .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "✅ Pre-commit hook installed successfully!"
+	@echo "💡 The hook will check formatting on every commit"
+	@echo "💡 Use 'git commit --no-verify' to skip the check if needed"
 
 # Help target
 help:
@@ -376,6 +517,11 @@ help:
 	@echo "  memory-check - Run both ASan and Valgrind"
 	@echo "  memory-clean - Clean memory analysis artifacts"
 	@echo ""
+	@echo "🎨 Code formatting targets:"
+	@echo "  format       - Format all C files with Linux kernel style"
+	@echo "  format-check - Check if all C files follow Linux kernel style"
+	@echo "  install-hooks - Install git pre-commit hooks for formatting"
+	@echo ""
 	@echo "📁 Project info:"
 	@echo "  Source files: $(SOURCES)"
 	@echo "  Assembly files: $(ASSEMBLY)"
@@ -391,4 +537,6 @@ help:
 	@echo "  make asm-compare LOW=2 HIGH=z  - Compare O2 vs Oz (aggressive size)"
 	@echo "  make asm-compare LOW=3 HIGH=fast - Compare O3 vs Ofast (unsafe)"
 	@echo "  make memory-check - Run full memory safety analysis"
+	@echo "  make format  - Format code with Linux kernel style"
+	@echo "  make format-check - Check code formatting compliance"
 	@echo "  make clean   - Clean up generated files"

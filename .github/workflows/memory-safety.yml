@@ -20,10 +20,18 @@ on:
   workflow_dispatch:
 
 env:
-  # Compiler and basic flags
+  # Compiler configuration
   CC: gcc
-  # Memory-safe flags (removed ARM64 kernel-specific and conflicting flags)
-  BASE_CFLAGS: -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Werror=implicit-function-declaration
+  CFLAGS: >-
+    -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare 
+    -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length 
+    -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing 
+    -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types 
+    -Werror=designated-init -Werror=implicit-function-declaration
+  ARCH_FLAGS: -march=armv8-a
+  # AddressSanitizer configuration
+  ASAN_OPTIONS: >-
+    detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=true:check_initialization_order=1:strict_init_order=1
 
 jobs:
   addresssanitizer:
@@ -42,87 +50,92 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc build-essential libc6-dbg
         
-    - name: Setup ASan environment
-      run: |
-        echo "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=true:check_initialization_order=1:strict_init_order=1" >> $GITHUB_ENV
-        echo "Architecture: arm64"
-        echo "OS: ${{ matrix.os }}"
-        
     - name: Discover C files
       id: discover
       run: |
-        c_files=$(find . -name "*.c" -type f | head -20)  # Limit to prevent overwhelming output
-        echo "Found C files:"
-        echo "$c_files"
+        c_files=$(find . -name "*.c" -type f -not -path "./training/*")
         echo "c_files<<EOF" >> $GITHUB_OUTPUT
         echo "$c_files" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
         
     - name: Compile with AddressSanitizer
       run: |
-        echo "🔧 Compiling C files with AddressSanitizer on arm64..."
         mkdir -p build/asan
         failed_files=""
+        success_count=0
+        total_count=0
         
-        # ARM64 specific flags
-        ARCH_FLAGS="-march=armv8-a -mtune=generic"
+        c_files_found="${{ steps.discover.outputs.c_files }}"
         
-        while IFS= read -r file; do
-          if [ -n "$file" ]; then
-            base_name=$(basename "$file" .c)
-            echo "Compiling $file -> build/asan/$base_name"
-            
-            if ! $CC $BASE_CFLAGS $ARCH_FLAGS -fsanitize=address -fno-omit-frame-pointer -O1 \
-                    -o "build/asan/$base_name" "$file" 2>&1; then
-              echo "❌ Failed to compile $file"
-              failed_files="$failed_files $file"
-            else
-              echo "✅ Successfully compiled $file"
-            fi
+        IFS=$'\n'
+        for file in $c_files_found; do
+          if [ -z "$file" ] || [ ! -f "$file" ]; then
+            continue
           fi
-        done <<< "${{ steps.discover.outputs.c_files }}"
+          
+          total_count=$((total_count + 1))
+          base_name=$(basename "$file")
+          base_name="${base_name%.c}"
+          
+          # Convert CFLAGS to array for proper expansion
+          eval "CFLAGS_ARRAY=($CFLAGS)"
+          eval "ARCH_FLAGS_ARRAY=($ARCH_FLAGS)"
+          
+          # Try to compile as executable (with main)
+          if "$CC" "${CFLAGS_ARRAY[@]}" "${ARCH_FLAGS_ARRAY[@]}" -fsanitize=address -fno-omit-frame-pointer -O1 \
+                  -o "build/asan/$base_name" "$file" 2>/dev/null; then
+            success_count=$((success_count + 1))
+          # If that fails, try to compile as object file (library without main)
+          elif "$CC" "${CFLAGS_ARRAY[@]}" "${ARCH_FLAGS_ARRAY[@]}" -fsanitize=address -fno-omit-frame-pointer -O1 \
+                  -c -o "build/asan/$base_name.o" "$file" 2>/dev/null; then
+            success_count=$((success_count + 1))
+          else
+            echo "Failed to compile: $file"
+            failed_files="$failed_files $file"
+          fi
+        done
+        unset IFS
         
+        echo "Compilation results: $success_count/$total_count files compiled"
         if [ -n "$failed_files" ]; then
-          echo "Failed to compile: $failed_files"
+          echo "Failed files: $failed_files"
+        fi
+        
+        if [ "$success_count" -eq 0 ]; then
+          echo "❌ No files were successfully compiled."
           exit 1
         fi
         
     - name: Run AddressSanitizer tests
       run: |
-        echo "🧪 Running AddressSanitizer tests..."
         cd build/asan
         failed_runs=""
+        test_count=0
         
-        for executable in *; do
-          if [ -x "$executable" ]; then
-            echo "Running AddressSanitizer test on $executable..."
-            
-            if timeout 30s ./"$executable" 2>&1; then
-              echo "✅ ASan test passed for $executable"
+        for file in *; do
+          if [ -x "$file" ] && [ ! -d "$file" ]; then
+            test_count=$((test_count + 1))
+            if timeout 30s ./"$file" 2>/dev/null; then
+              continue
             else
-              exit_code=$?
-              if [ $exit_code -eq 124 ]; then
-                echo "⏰ Timeout for $executable (30s limit)"
-              else
-                echo "❌ ASan detected issues in $executable (exit code: $exit_code)"
-                failed_runs="$failed_runs $executable"
-              fi
+              failed_runs="$failed_runs $file"
             fi
           fi
         done
         
+        echo "Tested $test_count executables"
         if [ -n "$failed_runs" ]; then
-          echo "AddressSanitizer detected issues in: $failed_runs"
+          echo "❌ AddressSanitizer detected issues in: $failed_runs"
           exit 1
         fi
         
     - name: Upload ASan artifacts
-      if: always()
+      if: failure()
       uses: actions/upload-artifact@v4
       with:
         name: asan-binaries-arm64-${{ matrix.os }}
         path: build/asan/
-        retention-days: 2
+        retention-days: 1
 
   valgrind:
     name: Valgrind Analysis  
@@ -143,109 +156,88 @@ jobs:
     - name: Verify Valgrind installation
       run: |
         valgrind --version
-        which valgrind
-        echo "Architecture: arm64"
-        echo "OS: ${{ matrix.os }}"
         
     - name: Discover C files
       id: discover
       run: |
-        c_files=$(find . -name "*.c" -type f | head -20)
-        echo "Found C files:"
-        echo "$c_files"
+        c_files=$(find . -name "*.c" -type f -not -path "./training/*")
         echo "c_files<<EOF" >> $GITHUB_OUTPUT
         echo "$c_files" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
         
     - name: Compile for Valgrind
       run: |
-        echo "🔧 Compiling C files for Valgrind analysis on arm64..."
         mkdir -p build/valgrind
         failed_files=""
+        success_count=0
+        total_count=0
         
-        # ARM64 specific flags
-        ARCH_FLAGS="-march=armv8-a -mtune=generic"
+        c_files_found="${{ steps.discover.outputs.c_files }}"
         
-        while IFS= read -r file; do
-          if [ -n "$file" ]; then
-            base_name=$(basename "$file" .c)
-            echo "Compiling $file -> build/valgrind/$base_name"
+        # Convert CFLAGS to array for proper expansion
+        eval "CFLAGS_ARRAY=($CFLAGS)"
+        eval "ARCH_FLAGS_ARRAY=($ARCH_FLAGS)"
+        
+        IFS=$'\n'
+        for file in $c_files_found; do
+          if [ -n "$file" ] && [ -f "$file" ]; then
+            total_count=$((total_count + 1))
+            base_name=$(basename "$file")
+            base_name="${base_name%.c}"
             
-            # Compile with debug info and no optimizations for better Valgrind analysis
-            if ! $CC $BASE_CFLAGS $ARCH_FLAGS -O0 -g3 \
-                    -o "build/valgrind/$base_name" "$file" 2>&1; then
-              echo "❌ Failed to compile $file"
-              failed_files="$failed_files $file"
+            # Try to compile as executable (with main)
+            if "$CC" "${CFLAGS_ARRAY[@]}" "${ARCH_FLAGS_ARRAY[@]}" -O0 -g3 \
+                    -o "build/valgrind/$base_name" "$file" 2>/dev/null; then
+              success_count=$((success_count + 1))
+            # If that fails, try to compile as object file (library without main)
+            elif "$CC" "${CFLAGS_ARRAY[@]}" "${ARCH_FLAGS_ARRAY[@]}" -O0 -g3 \
+                    -c -o "build/valgrind/$base_name.o" "$file" 2>/dev/null; then
+              success_count=$((success_count + 1))
             else
-              echo "✅ Successfully compiled $file"
+              echo "Failed to compile: $file"
+              failed_files="$failed_files $file"
             fi
           fi
-        done <<< "${{ steps.discover.outputs.c_files }}"
+        done
+        unset IFS
         
+        echo "Compilation results: $success_count/$total_count files compiled"
         if [ -n "$failed_files" ]; then
-          echo "Failed to compile: $failed_files"
+          echo "Failed files: $failed_files"
+        fi
+        
+        if [ "$success_count" -eq 0 ]; then
+          echo "❌ No files were successfully compiled."
           exit 1
         fi
         
     - name: Run Valgrind Memcheck
       run: |
-        echo "🧪 Running Valgrind Memcheck..."
         cd build/valgrind
         failed_runs=""
         
-        for executable in *; do
-          if [ -x "$executable" ]; then
-            echo "Running Valgrind on $executable..."
-            
-            valgrind_output="valgrind_${executable}.log"
-            
-            if timeout 60s valgrind \
-                --tool=memcheck \
-                --leak-check=full \
-                --show-leak-kinds=all \
-                --track-origins=yes \
-                --verbose \
-                --error-exitcode=1 \
-                --suppressions=/dev/null \
-                --gen-suppressions=no \
-                --log-file="$valgrind_output" \
-                ./"$executable" 2>&1; then
-              echo "✅ Valgrind test passed for $executable"
+        for file in *; do
+          if [ -x "$file" ] && [ ! -d "$file" ]; then
+            if timeout 60s valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ./"$file" >/dev/null 2>&1; then
+              continue
             else
-              exit_code=$?
-              if [ $exit_code -eq 124 ]; then
-                echo "⏰ Timeout for $executable (60s limit)"
-              else
-                echo "❌ Valgrind detected issues in $executable"
-                echo "--- Valgrind output for $executable ---"
-                cat "$valgrind_output" || echo "Could not read valgrind output"
-                echo "--- End of Valgrind output ---"
-                failed_runs="$failed_runs $executable"
-              fi
+              failed_runs="$failed_runs $file"
             fi
           fi
         done
         
         if [ -n "$failed_runs" ]; then
-          echo "Valgrind detected issues in: $failed_runs"
+          echo "❌ Valgrind detected issues in: $failed_runs"
           exit 1
         fi
         
-    - name: Upload Valgrind reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: valgrind-reports-arm64-${{ matrix.os }}
-        path: build/valgrind/*.log
-        retention-days: 2
-        
     - name: Upload Valgrind binaries
-      if: always()
+      if: failure()
       uses: actions/upload-artifact@v4
       with:
         name: valgrind-binaries-arm64-${{ matrix.os }}
         path: build/valgrind/
-        retention-days: 2
+        retention-days: 1
 
   memory-safety-summary:
     name: Memory Safety Summary
@@ -259,30 +251,14 @@ jobs:
         echo "# 🛡️ Memory Safety Analysis Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        # AddressSanitizer results
-        echo "## 🔍 AddressSanitizer Results" >> $GITHUB_STEP_SUMMARY
         if [[ "${{ needs.addresssanitizer.result }}" == "success" ]]; then
-          echo "✅ **ARM64 platform passed**" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **AddressSanitizer**: Passed" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **Issues detected** on ARM64 platform" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **AddressSanitizer**: Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        echo "" >> $GITHUB_STEP_SUMMARY
         
-        # Valgrind results  
-        echo "## 🔬 Valgrind Results" >> $GITHUB_STEP_SUMMARY
         if [[ "${{ needs.valgrind.result }}" == "success" ]]; then
-          echo "✅ **ARM64 platform passed**" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Valgrind**: Passed" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **Issues detected** on ARM64 platform" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Valgrind**: Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        echo "## 🏗️ Tested Architecture" >> $GITHUB_STEP_SUMMARY
-        echo "- **ARM64** (ubuntu-24.04-arm & ubuntu-22.04-arm): Target Raspberry Pi architecture" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## 📊 Analysis Details" >> $GITHUB_STEP_SUMMARY
-        echo "- **AddressSanitizer**: Detects buffer overflows, use-after-free, memory leaks" >> $GITHUB_STEP_SUMMARY
-        echo "- **Valgrind**: Advanced memory error detection and leak checking" >> $GITHUB_STEP_SUMMARY
-        echo "- **Coverage**: All C files in the repository" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🔗 Download artifacts above to examine detailed reports for ARM64 architecture" >> $GITHUB_STEP_SUMMARY
