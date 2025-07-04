@@ -2,6 +2,8 @@
 #define VEC_H
 #include <arm_neon.h>
 #include <stdint.h>
+#include <stdio.h>
+
 typedef struct {
 	float32_t x;
 	float32_t y;

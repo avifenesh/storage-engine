@@ -8,6 +8,7 @@
 
 ### **Learning Resources**
 - **[ENHANCED_LEARNING_RESOURCES.md](ENHANCED_LEARNING_RESOURCES.md)** - Comprehensive learning materials for multi-modal system development
+- **[MAKEFILE_USAGE_GUIDE.md](MAKEFILE_USAGE_GUIDE.md)** - Complete guide to using the project's Makefile system
 
 ### **Training Exercises**
 - **[../training/c/](../training/c/)** - C programming practice exercises from Exercism covering algorithms, mathematics, and problem-solving
@@ -23,6 +24,7 @@
 
 **For Project Status**: Start with [C-fast-track-kanban.md](C-fast-track-kanban.md)  
 **For Learning**: Check [ENHANCED_LEARNING_RESOURCES.md](ENHANCED_LEARNING_RESOURCES.md)  
+**For Build System**: Use [MAKEFILE_USAGE_GUIDE.md](MAKEFILE_USAGE_GUIDE.md)  
 **For Practice**: Browse [../training/c/](../training/c/) for hands-on exercises  
 **For Technical Details**: Reference individual sprint files  
 **For Quick Updates**: Use [LEARNING_PROGRESS.md](LEARNING_PROGRESS.md)
