@@ -1,5 +1,9 @@
 name: Memory Safety Analysis (ASan + Valgrind)
 
+permissions:
+  contents: read
+  actions: write
+
 on:
   push:
     branches: [main]
