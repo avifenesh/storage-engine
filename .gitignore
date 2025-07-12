@@ -32,3 +32,10 @@ valgrind/
 # Temporary files
 *.tmp
 *.temp
+
+.modules.*
+*.ko*
+*.mod*
+*.symvers*
+*.order
+.*.o*
