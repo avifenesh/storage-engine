@@ -26,5 +26,8 @@
         "editor.defaultFormatter": "redhat.vscode-yaml"
     },
     "editor.formatOnSave": true,
-    "editor.formatOnPaste": true
+    "editor.formatOnPaste": true,
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    }
     }
