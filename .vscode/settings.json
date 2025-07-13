@@ -19,5 +19,12 @@
     "vim.vimrc.path": "$HOME/.vimrc",
     "[c]": {
         "editor.defaultFormatter": "ms-vscode.cpptools"
+    },
+    "C_Cpp.clang_format_style": "file",
+    "C_Cpp.clang_format_fallbackStyle": "GNU",
+    "[yaml]": {
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true
     }
-}
