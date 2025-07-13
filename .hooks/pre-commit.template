@@ -28,50 +28,12 @@ else
         echo "💡 Skipping formatting check..."
         # Don't exit here - let git continue with the commit
     else
-        # Linux kernel style configuration
-        CLANG_FORMAT_STYLE="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false, ColumnLimit: 80, AlignTrailingComments: true, SpaceBeforeParens: ControlStatements, KeepEmptyLinesAtTheStartOfBlocks: false}"
-
-        # Check formatting for each staged file
-        FAILED_FILES=""
+        # Format each staged file using .clang-format (Linux kernel style)
         for file in $STAGED_C_FILES; do
-            echo "  🔍 Checking $file..."
-            
-            # Check if file exists (might be deleted)
-            if [ ! -f "$file" ]; then
-                echo "    ℹ️  File deleted, skipping"
-                continue
-            fi
-            
-            # Check formatting
-            if ! clang-format --style="$CLANG_FORMAT_STYLE" "$file" | diff -u "$file" - >/dev/null; then
-                echo "    ❌ $file needs formatting"
-                FAILED_FILES="$FAILED_FILES $file"
-            else
-                echo "    ✅ $file is properly formatted"
-            fi
+            echo "  � Formatting $file..."
+            clang-format -i --style=file "$file"
         done
-
-        # If any files failed formatting check
-        if [ -n "$FAILED_FILES" ]; then
-            echo ""
-            echo "❌ Commit aborted! The following files need formatting:"
-            for file in $FAILED_FILES; do
-                echo "  - $file"
-            done
-            echo ""
-            echo "💡 Fix formatting issues:"
-            echo "  Option 1: Run 'make format' to format all C files"
-            echo "  Option 2: Format specific files:"
-            for file in $FAILED_FILES; do
-                echo "    clang-format -i --style=\"$CLANG_FORMAT_STYLE\" $file"
-            done
-            echo ""
-            echo "  Option 3: Skip this check (not recommended):"
-            echo "    git commit --no-verify"
-            exit 1
-        fi
-
-        echo "✅ All staged C files are properly formatted!"
+        echo "✅ All staged C files have been formatted!"
     fi
 fi
 

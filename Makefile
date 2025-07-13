@@ -1,10 +1,10 @@
 # Makefile for generating assembly files from C source with ARM64 kernel-style flags
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
-         -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
-         -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
-         -fno-common -fshort-wchar -fno-PIE -march=armv8-a -mtune=generic \
-         -DCONFIG_ARM64 -DCONFIG_64BIT -mcmodel=small \
+		 -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
+		 -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
+		 -fno-common -fshort-wchar -fno-PIE -march=armv8-a -mtune=generic \
+		 -DCONFIG_ARM64 -DCONFIG_64BIT -mcmodel=small \
 	 -falign-functions=4 -falign-jumps=1 -falign-loops=1 \
 	 -fstack-protector-strong -fno-delete-null-pointer-checks \
 	 -fno-allow-store-data-races -Wframe-larger-than=2048 -pipe \
@@ -24,10 +24,10 @@ ASMFLAGS = -S -fverbose-asm
 
 # Define compatible flags for binary compilation (removes problematic kernel flags)
 BINARY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
-                     -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
-                     -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
-                     -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
-                     -Werror=designated-init -Werror=implicit-function-declaration
+					 -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
+					 -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
+					 -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
+					 -Werror=designated-init -Werror=implicit-function-declaration
 
 # Automatically find all .c files in sprint folders
 SPRINT_DIRS = sprint-1-core-memory sprint-2-system-programming sprint-3-performance-simd sprint-4-kernel-memory
@@ -300,10 +300,10 @@ executables: $(TARGETS)
 
 # Define flags safe for memory analysis (remove ARM64 kernel-specific flags)
 MEMORY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
-	             -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
-	             -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
-	             -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
-	             -Werror=designated-init -Werror=implicit-function-declaration
+				 -Wno-unused-function -Wno-unused-variable -Wno-format-zero-length \
+				 -Wdeclaration-after-statement -Wvla -std=gnu11 -fno-strict-aliasing \
+				 -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
+				 -Werror=designated-init -Werror=implicit-function-declaration
 
 # AddressSanitizer build and test
 asan:
@@ -421,7 +421,7 @@ memory-clean:
 
 # Code formatting targets (Linux kernel style)
 format:
-	@echo "🎨 Formatting C code with Linux kernel style..."
+	@echo "🎨 Formatting C code with Linux kernel style (.clang-format)..."
 	@if ! command -v clang-format >/dev/null 2>&1; then \
 		echo "❌ clang-format not found. Install with: sudo apt-get install clang-format"; \
 		exit 1; \
@@ -429,7 +429,7 @@ format:
 	@echo "📋 Formatting files: $(FORMAT_FILES)"
 	@for file in $(FORMAT_FILES); do \
 		echo "  🔧 Formatting $$file..."; \
-		clang-format -i --style="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false, ColumnLimit: 80, AlignTrailingComments: true, SpaceBeforeParens: ControlStatements, KeepEmptyLinesAtTheStartOfBlocks: false}" $$file; \
+		clang-format -i --style=file $$file; \
 	done
 	@echo "✅ Code formatting complete!"
 
