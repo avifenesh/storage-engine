@@ -1,8 +1,13 @@
 #include <stdio.h>
 
-void increament(int *p) { *p = *p + 1; }
+void
+increament(int *p)
+{
+	*p = *p + 1;
+}
 
-int main(void)
+int
+main(void)
 {
 	int i = 10;
 	int *j = &i;

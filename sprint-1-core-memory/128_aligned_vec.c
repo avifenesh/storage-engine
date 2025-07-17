@@ -2,13 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void print_vec(const char *name, const aligned_vec_t *vec)
+void
+print_vec(const char *name, const aligned_vec_t *vec)
 {
 	printf("%s: x=%.2f, y=%.2f, z=%.2f, w=%.2f (addr: %p)\n", name, vec->x,
 	       vec->y, vec->z, vec->w, (void *)vec);
 }
 
-int main(void)
+int
+main(void)
 {
 	aligned_vec_t vec_a;
 	aligned_vec_t vec_b;
@@ -49,10 +51,10 @@ int main(void)
 	vec_result_scalar.w = vec_a.w + vec_b.w;
 	print_vec("vec_result_scalar", &vec_result_scalar);
 
-	if (vec_result_neon.x == vec_result_scalar.x &&
-	    vec_result_neon.y == vec_result_scalar.y &&
-	    vec_result_neon.z == vec_result_scalar.z &&
-	    vec_result_neon.w == vec_result_scalar.w) {
+	if (vec_result_neon.x == vec_result_scalar.x
+	    && vec_result_neon.y == vec_result_scalar.y
+	    && vec_result_neon.z == vec_result_scalar.z
+	    && vec_result_neon.w == vec_result_scalar.w) {
 		printf(
 		    "\nNEON and scalar results match! SIMD works correctly.\n");
 	} else {

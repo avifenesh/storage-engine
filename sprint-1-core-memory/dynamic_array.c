@@ -7,7 +7,8 @@ typedef struct {
 	size_t capacity;
 } dyn_array_t;
 
-int append(dyn_array_t *arr, int value)
+int
+append(dyn_array_t *arr, int value)
 {
 	if (!(arr->capacity > arr->size)) {
 		arr->capacity = arr->capacity ? arr->capacity * 2 : 2;
@@ -23,14 +24,16 @@ int append(dyn_array_t *arr, int value)
 	return 0;
 }
 
-void array_init(dyn_array_t *arr)
+void
+array_init(dyn_array_t *arr)
 {
 	arr->data = NULL;
 	arr->size = 0;
 	arr->capacity = 0;
 }
 
-void free_array(dyn_array_t *arr)
+void
+free_array(dyn_array_t *arr)
 {
 	if (arr->data) {
 		free(arr->data);
@@ -40,7 +43,8 @@ void free_array(dyn_array_t *arr)
 	arr->capacity = 0;
 }
 
-int main(void)
+int
+main(void)
 {
 	dyn_array_t arr;
 	dyn_array_t *arr_ptr = &arr;

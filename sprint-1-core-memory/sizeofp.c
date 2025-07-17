@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/types.h>
-int main(void)
+int
+main(void)
 {
 	int *p;
 

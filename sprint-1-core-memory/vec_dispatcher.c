@@ -1,19 +1,22 @@
 #include "vec.h"
 
-int add_f32(const float32_t *a, const float32_t *b, float32_t *result)
+int
+add_f32(const float32_t *a, const float32_t *b, float32_t *result)
 {
 	*result = *a + *b;
 	return 0;
 }
 
-int multiply_f32(const float32_t *a, const float32_t *b, float32_t *result)
+int
+multiply_f32(const float32_t *a, const float32_t *b, float32_t *result)
 {
 	*result = *a * *b;
 	return 0;
 }
 
-int add_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b,
-		 aligned_vec_t *result)
+int
+add_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b,
+	     aligned_vec_t *result)
 {
 	float32x4_t neon_a = vld1q_f32(&a->x);
 	float32x4_t neon_b = vld1q_f32(&b->x);
@@ -22,8 +25,9 @@ int add_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b,
 	return 0;
 }
 
-int multiply_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b,
-		      aligned_vec_t *result)
+int
+multiply_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b,
+		  aligned_vec_t *result)
 {
 	float32x4_t neon_a = vld1q_f32(&a->x);
 	float32x4_t neon_b = vld1q_f32(&b->x);
@@ -32,8 +36,8 @@ int multiply_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b,
 	return 0;
 }
 
-int dot_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b,
-		 float32_t *result)
+int
+dot_vec4_f32(const aligned_vec_t *a, const aligned_vec_t *b, float32_t *result)
 {
 	float32x4_t neon_a = vld1q_f32(&a->x);
 	float32x4_t neon_b = vld1q_f32(&b->x);
@@ -50,17 +54,18 @@ typedef int (*operation_vec4_f32_t)(const aligned_vec_t *a,
 				    aligned_vec_t *result);
 
 static const operation_f32_t f32_operations[] = {
-    [ADD] = add_f32,
-    [MULTIPLY] = multiply_f32,
+	[ADD] = add_f32,
+	[MULTIPLY] = multiply_f32,
 };
 
 static const operation_vec4_f32_t vec4_f32_operations[] = {
-    [ADD] = add_vec4_f32,
-    [MULTIPLY] = multiply_vec4_f32,
+	[ADD] = add_vec4_f32,
+	[MULTIPLY] = multiply_vec4_f32,
 };
 
-int dispatch(const data_type_t type, const op_name_t name, const void *a,
-	     const void *b, void *result)
+int
+dispatch(const data_type_t type, const op_name_t name, const void *a,
+	 const void *b, void *result)
 {
 	if (type == TYPE_F32) {
 		if (name == DOT) {
@@ -84,7 +89,8 @@ int dispatch(const data_type_t type, const op_name_t name, const void *a,
 }
 
 /* Test and demonstration main function */
-int main(void)
+int
+main(void)
 {
 	printf("🎯 Function Pointer Dispatcher Demo - Issue #5\n");
 	printf("===============================================\n\n");
@@ -109,8 +115,8 @@ int main(void)
 
 	/* Test 2: Vector4 operations */
 	printf("\n🔢 Testing vector4 SIMD operations:\n");
-	aligned_vec_t vec_a = {1.0f, 2.0f, 3.0f, 4.0f};
-	aligned_vec_t vec_b = {2.0f, 3.0f, 1.0f, 2.0f};
+	aligned_vec_t vec_a = { 1.0f, 2.0f, 3.0f, 4.0f };
+	aligned_vec_t vec_b = { 2.0f, 3.0f, 1.0f, 2.0f };
 	aligned_vec_t result_vec;
 	float32_t dot_result;
 
@@ -124,8 +130,8 @@ int main(void)
 		       result_vec.x, result_vec.y, result_vec.z, result_vec.w);
 	}
 
-	if (dispatch(TYPE_VEC4_F32, MULTIPLY, &vec_a, &vec_b, &result_vec) ==
-	    0) {
+	if (dispatch(TYPE_VEC4_F32, MULTIPLY, &vec_a, &vec_b, &result_vec)
+	    == 0) {
 		printf("  ✅ VECTOR MULTIPLY: [%.1f, %.1f, %.1f, %.1f]\n",
 		       result_vec.x, result_vec.y, result_vec.z, result_vec.w);
 	}
@@ -135,8 +141,8 @@ int main(void)
 
 		/* Verify dot product manually: (1*2 + 2*3 + 3*1 + 4*2) =
 		 * 2+6+3+8 = 19 */
-		float32_t expected = vec_a.x * vec_b.x + vec_a.y * vec_b.y +
-				     vec_a.z * vec_b.z + vec_a.w * vec_b.w;
+		float32_t expected = vec_a.x * vec_b.x + vec_a.y * vec_b.y
+				     + vec_a.z * vec_b.z + vec_a.w * vec_b.w;
 		printf("  🔍 Manual verification: %.1f (should match)\n",
 		       expected);
 	}
