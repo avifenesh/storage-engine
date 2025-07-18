@@ -43,6 +43,7 @@ proc_write(struct file *file, const char __user *buf, size_t count,
 static int
 proc_release(struct inode *inode, struct file *file)
 {
+	pr_info("proc_release called, count: %zu\n", count);
 	count--;
 	return 0;
 }
@@ -50,6 +51,7 @@ proc_release(struct inode *inode, struct file *file)
 static int
 proc_open(struct inode *inode, struct file *file)
 {
+	pr_info("proc_open called, count: %zu\n", count);
 	count++;
 	return 0;
 }
