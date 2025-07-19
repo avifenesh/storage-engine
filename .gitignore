@@ -39,3 +39,6 @@ valgrind/
 *.symvers*
 *.order
 .*.o*
+
+# Claude.ai/code guidance file
+CLAUDE.md
