@@ -42,3 +42,4 @@ valgrind/
 
 # Claude.ai/code guidance file
 CLAUDE.md
+.claude/
