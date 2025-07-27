@@ -108,7 +108,7 @@ Building a **kernel-accelerated text search engine** to learn Linux kernel progr
 - **Main Kanban**: [TEXT-SEARCH-KANBAN.md](TEXT-SEARCH-KANBAN.md)
 - **Learning Resources**: [TEXT_SEARCH_RESOURCES.md](TEXT_SEARCH_RESOURCES.md)
 - **Performance Targets**: [PERFORMANCE_TARGETS.md](PERFORMANCE_TARGETS.md)
-- **GitHub Issues**: [Project Issues](https://github.com/[username]/C-refresher/issues)
+- **GitHub Issues**: [Project Issues](https://github.com/[username]/kernel-text-search/issues)
 
 ---
 
