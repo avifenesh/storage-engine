@@ -44,3 +44,4 @@ valgrind/
 CLAUDE.md
 .claude/
 sqlite_mcp_server.db
+.mcp.json
