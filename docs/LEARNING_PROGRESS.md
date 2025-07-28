@@ -1,31 +1,35 @@
-# Learning Progress - Kernel-Accelerated Text Search Engine
+# Learning Progress - High-Performance Database Storage Engine
 
 ## Project Overview
-Building a **kernel-accelerated text search engine** to learn Linux kernel programming, text processing algorithms, and SIMD optimization on ARM64 platforms.
+Building a **high-performance database storage engine** to learn Linux kernel programming, database algorithms, distributed systems, and SIMD optimization on ARM64 platforms.
 
-**Focused Goal**: Master systems programming through a realistic project that combines kernel development, algorithm implementation, and performance optimization.
+**Focused Goal**: Master systems programming through a realistic project that combines multiple storage engines, kernel development, and production-grade features.
 
-## 🎯 Project Scope (Restructured)
-- **Text Search Engine**: Inverted index with TF-IDF scoring
-- **Kernel Acceleration**: Character device with IOCTL interface
-- **SIMD Optimization**: ARM NEON for string operations
-- **Realistic Targets**: 100K documents, <10ms latency, 100-500 QPS
+## 🎯 Project Scope (Comprehensive Storage Engine)
+- **Multiple Storage Engines**: Hash tables, B+ trees, LSM trees
+- **Kernel Integration**: Character devices with IOCTL interfaces
+- **SIMD Optimization**: ARM NEON for database operations
+- **Distributed Systems**: Raft consensus and replication
+- **Production Features**: Monitoring, APIs, deployment
+- **Realistic Targets**: 10M+ key-value pairs, <1ms latency, 100K+ ops/sec
 
 ## ⚠️ Safety Notice
-**Sprint 3 involves kernel programming which can crash your system.**
+**Sprints 2-4 involve kernel programming which can crash your system.**
 - Always use a VM for kernel development
 - Keep backups of important data
+- Test kernel modules in isolated environments
 - Read the safety warnings in each sprint guide
+- Understand that kernel bugs can corrupt filesystems
 
 ## 📊 Sprint Progress Summary
 
 | Sprint | Focus | Issues | Status | Details |
 |--------|-------|--------|--------|---------|
 | **Sprint 1** | C Core & Memory | #1-6 | ✅ **COMPLETE** (6/6) | Solid foundation established |
-| **Sprint 2** | Text Processing | #27-30 | 📋 Ready to Start | Tokenization, inverted index, TF-IDF |
-| **Sprint 3** | Kernel Device | #31-34 | 📋 Planned | /dev/textsearch implementation |
-| **Sprint 4** | SIMD Optimization | #35-37 | 📋 Planned | ARM NEON text processing |
-| **Sprint 5** | Production Features | #38-41 | 📋 Planned | Rust client, advanced search |
+| **Sprint 2** | Hash Storage Engine | #27-30 | 📋 Ready to Start | Hash tables, kernel device, SIMD hashing |
+| **Sprint 3** | B+ Tree Storage | #31-34 | 📋 Planned | Balanced trees, range queries, kernel integration |
+| **Sprint 4** | LSM Tree + SIMD | #35-37 | 📋 Planned | Write-optimized storage, ARM NEON optimization |
+| **Sprint 5** | Production Features | #38-41 | 📋 Planned | Distributed systems, APIs, monitoring |
 
 ## 🎉 Current Status
 **Sprint 1 COMPLETE!** All 6 foundational issues successfully implemented ✅

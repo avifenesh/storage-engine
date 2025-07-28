@@ -1,132 +1,152 @@
-# Sprint 2: Text Processing Foundations
+# Sprint 2: Hash-Based Storage Engine
 
 ## Overview
-Build the core text processing components for a search engine, including tokenization, inverted index construction, and TF-IDF scoring - all in user-space C.
+Implement a high-performance hash-based storage engine with kernel acceleration. Learn hash table algorithms, memory management, and kernel programming fundamentals.
 
 **Duration**: 3-4 weeks  
-**Prerequisites**: Completed Sprint 1 (C fundamentals)
+**Prerequisites**: Completed Sprint 1 (C core memory fundamentals)
 
 ---
 
 ## 🎯 Learning Objectives
 
-1. **Master text tokenization** - Split documents into searchable terms
-2. **Build inverted indexes** - Efficient data structure for text search
-3. **Implement TF-IDF scoring** - Rank documents by relevance
-4. **Design efficient hash tables** - Fast term lookup with collision handling
-5. **Handle real-world text** - Unicode, punctuation, case normalization
+1. **Master hash table algorithms** - Implement efficient collision resolution strategies
+2. **Build kernel storage interface** - Create character device for key-value operations
+3. **Optimize for performance** - Use SIMD instructions for hashing and comparison
+4. **Handle concurrent access** - Implement proper locking and synchronization
+5. **Design for scalability** - Support millions of key-value pairs efficiently
 
 ---
 
 ## 📋 Sprint Issues
 
-### Issue #27: Implement Text Tokenization and Normalization
-**File**: `sprint-2-text-processing/tokenizer.c`
+### Issue #27: Implement Core Hash Table Engine
+**File**: `sprint-2-hash-storage/hash_engine.c`
 
 **Requirements**:
-- Split text into individual words/tokens
-- Convert to lowercase for case-insensitive search
-- Remove punctuation (configurable)
-- Handle basic Unicode (UTF-8)
-- Filter common stopwords (the, a, an, etc.)
+- Build hash table with configurable size and load factor
+- Implement multiple collision resolution strategies (chaining, open addressing)
+- Support variable-length keys and values
+- Provide thread-safe operations with read-write locks
+- Handle automatic resizing when load factor exceeded
 
 **Example Interface**:
 ```c
+// Hash table entry
+typedef struct hash_entry {
+    char *key;
+    char *value;
+    size_t key_len;
+    size_t value_len;
+    uint32_t hash;
+    struct hash_entry *next;  // For chaining
+} hash_entry_t;
+
+// Hash table structure
 typedef struct {
-    char* token;
-    size_t position;  // Position in original text
-    size_t length;
-} token_t;
+    hash_entry_t **buckets;
+    size_t bucket_count;
+    size_t entry_count;
+    double max_load_factor;
+    hash_strategy_t strategy;
+    pthread_rwlock_t lock;
+} hash_table_t;
 
-typedef struct {
-    token_t* tokens;
-    size_t count;
-    size_t capacity;
-} token_list_t;
-
-// Main tokenization function
-token_list_t* tokenize_text(const char* text, size_t length);
-
-// Helper functions
-void normalize_token(char* token);
-bool is_stopword(const char* token);
-void free_token_list(token_list_t* tokens);
+// Core hash operations
+hash_table_t* create_hash_table(size_t initial_size, hash_strategy_t strategy);
+int hash_put(hash_table_t *table, const char *key, const char *value);
+char* hash_get(hash_table_t *table, const char *key);
+int hash_delete(hash_table_t *table, const char *key);
+void destroy_hash_table(hash_table_t *table);
 ```
 
 **Success Criteria**:
-- Tokenize 10MB of text in <1 second
-- Correctly handle "Hello, World!" → ["hello", "world"]
+- Handle 1M+ key-value pairs with <1ms average lookup time
+- Maintain load factor under 0.75 with automatic resizing
 - Memory-safe with no leaks (Valgrind clean)
+- Thread-safe concurrent access
 
 ---
 
-### Issue #28: Build In-Memory Inverted Index
-**File**: `sprint-2-text-processing/inverted_index.c`
+### Issue #28: Implement Kernel Character Device Interface
+**File**: `sprint-2-hash-storage/hash_device.c`
 
 **Requirements**:
-- Hash table mapping terms to document lists
-- Store document ID and term positions
-- Support incremental document addition
-- Efficient memory usage with dynamic growth
+- Create kernel module with character device interface
+- Implement IOCTL commands for hash operations (PUT/GET/DELETE)
+- Handle user-kernel data transfer safely
+- Support concurrent kernel-space access
 
 **Example Interface**:
 ```c
-typedef struct posting {
-    uint32_t doc_id;
-    uint32_t* positions;  // Term positions in document
-    uint32_t pos_count;
-    struct posting* next;
-} posting_t;
+#include <linux/ioctl.h>
+
+#define HASH_DEVICE_MAGIC 'H'
+
+// IOCTL command structures
+typedef struct {
+    char *key;
+    char *value;
+    size_t key_len;
+    size_t value_len;
+} hash_put_cmd_t;
 
 typedef struct {
-    char* term;
-    posting_t* postings;  // Linked list of documents
-    uint32_t doc_freq;    // Number of documents containing term
-} index_entry_t;
+    char *key;
+    char *value_buffer;
+    size_t key_len;
+    size_t buffer_size;
+    size_t value_len;  // Returned
+} hash_get_cmd_t;
 
 typedef struct {
-    index_entry_t** table;  // Hash table
-    size_t table_size;
-    size_t term_count;
-    uint32_t total_docs;
-} inverted_index_t;
+    char *key;
+    size_t key_len;
+} hash_delete_cmd_t;
 
-// Core index operations
-inverted_index_t* create_index(size_t initial_size);
-void add_document(inverted_index_t* index, uint32_t doc_id, token_list_t* tokens);
-posting_t* search_term(inverted_index_t* index, const char* term);
-void free_index(inverted_index_t* index);
+// IOCTL commands
+#define HASH_PUT    _IOW(HASH_DEVICE_MAGIC, 1, hash_put_cmd_t)
+#define HASH_GET    _IOWR(HASH_DEVICE_MAGIC, 2, hash_get_cmd_t)
+#define HASH_DELETE _IOW(HASH_DEVICE_MAGIC, 3, hash_delete_cmd_t)
+#define HASH_STATS  _IOR(HASH_DEVICE_MAGIC, 4, hash_stats_t)
 ```
 
 **Success Criteria**:
-- Index 100K documents without significant slowdown
-- O(1) average lookup time
-- Load factor maintained around 0.75
+- Kernel module loads and creates /dev/hashstore device
+- IOCTL operations work correctly from userspace
+- Proper error handling and memory management in kernel space
+- No kernel crashes or memory leaks
 
 ---
 
-### Issue #29: Implement TF-IDF Scoring Algorithm
-**File**: `sprint-2-text-processing/tfidf.c`
+### Issue #29: Add SIMD-Optimized Hash Functions
+**File**: `sprint-2-hash-storage/neon_hash.c`
 
 **Requirements**:
-- Calculate Term Frequency (TF) for each document
-- Compute Inverse Document Frequency (IDF) across corpus
-- Combine into TF-IDF scores for ranking
-- Efficient computation for large result sets
+- Implement ARM NEON optimized hash functions
+- Support multiple hash algorithms (FNV-1a, CRC32, xxHash)
+- Vectorize string comparison operations
+- Benchmark against scalar implementations
 
 **Example Interface**:
 ```c
-typedef struct {
-    uint32_t doc_id;
-    float score;
-} scored_doc_t;
+#include <arm_neon.h>
 
-typedef struct {
-    scored_doc_t* docs;
-    size_t count;
-} search_results_t;
+// SIMD hash function types
+typedef uint32_t (*hash_func_t)(const char *data, size_t len);
 
-// TF-IDF calculation
+// NEON-optimized hash functions
+uint32_t neon_fnv1a_hash(const char *data, size_t len);
+uint32_t neon_crc32_hash(const char *data, size_t len);
+uint32_t neon_xxhash(const char *data, size_t len);
+
+// SIMD string comparison
+int neon_memcmp(const void *s1, const void *s2, size_t n);
+int neon_strcmp(const char *s1, const char *s2);
+
+// Hash table with SIMD optimization
+hash_table_t* create_simd_hash_table(size_t initial_size, hash_func_t hash_func);
+```
 float calculate_tf(uint32_t term_count, uint32_t doc_length);
 float calculate_idf(uint32_t doc_freq, uint32_t total_docs);
 float calculate_tfidf(float tf, float idf);

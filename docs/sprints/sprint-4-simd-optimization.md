@@ -534,82 +534,88 @@ void generate_performance_report(const char *filename) {
 
 ## 🛠️ Implementation Guide
 
-### Week 1: NEON String Operations
-1. Learn ARM NEON intrinsics basics
-2. Implement string comparison
-3. Add case conversion functions
-4. Optimize tokenization
-5. Verify correctness
+### Week 1-2: LSM Tree Implementation
+1. Design LSM tree architecture
+2. Implement memtable with write-ahead log
+3. Build SSTable format with bloom filters
+4. Create compaction strategies
+5. Add concurrent access controls
 
-### Week 2: Hash Optimization
-1. Study hash algorithms
-2. Implement SIMD hash functions
-3. Test distribution quality
-4. Integrate with hash tables
-5. Measure lookup performance
+### Week 3: SIMD Optimization
+1. Optimize bloom filter operations with NEON
+2. Vectorize key comparison functions
+3. Accelerate merge operations
+4. Implement SIMD compression
+5. Measure performance improvements
 
-### Week 3: Benchmarking
-1. Create benchmark framework
-2. Implement specific tests
-3. Compare implementations
-4. Generate reports
-5. Document findings
+### Week 4: Performance Analysis
+1. Create comprehensive benchmark suite
+2. Compare LSM vs B+ tree characteristics
+3. Measure amplification factors
+4. Generate performance reports
+5. Document optimization techniques
 
 ---
 
 ## 📊 Testing Strategy
 
-### Correctness Testing
+### LSM Tree Testing
 ```bash
 # Run unit tests
-make test-simd
+make test-lsm
 
-# Verify against scalar implementation
-./verify_simd --iterations=10000
+# Test durability and recovery
+./test_crash_recovery --iterations=10000
 
-# Test edge cases
-./test_alignment
-./test_overflow
+# Test concurrent operations
+./test_concurrent_access --threads=8
+
+# Verify compaction correctness
+./test_compaction --sstables=10
 ```
 
 ### Performance Testing
 ```bash
-# Run benchmarks
-./benchmark --all --output=report.txt
+# Run storage benchmarks
+./storage_benchmark --workload=write_heavy --duration=300
+./storage_benchmark --workload=read_heavy --duration=300
+./storage_benchmark --workload=mixed --duration=300
 
 # Profile with perf
-perf record -g ./benchmark
+perf record -g ./storage_benchmark
 perf report
 
-# Check assembly output
-objdump -d neon_string_ops.o | grep -A20 neon_strcmp
+# Check SIMD optimization usage
+objdump -d neon_lsm_ops.o | grep -A20 neon_bloom_hash
 ```
 
 ---
 
 ## 🐛 Common Issues and Solutions
 
-### Issue: Incorrect results with unaligned data
-**Solution**: Handle alignment explicitly, process unaligned bytes with scalar code
+### Issue: High write amplification during compaction
+**Solution**: Implement tiered compaction strategy, reduce unnecessary rewrites
 
-### Issue: No speedup observed
-**Solution**: Check data alignment, ensure sufficient work per SIMD operation
+### Issue: Read performance degrades with many SSTables
+**Solution**: Optimize bloom filters, implement better indexing structures
 
-### Issue: Slower than scalar for small strings
-**Solution**: Add threshold check, use scalar for strings < 32 bytes
+### Issue: Memory usage grows during heavy writes
+**Solution**: Implement back-pressure, limit memtable size more aggressively
 
 ---
 
 ## 📚 Resources
 
-### ARM NEON Documentation
+### LSM Tree Resources
+- [LSM Tree Paper](https://www.cs.umb.edu/~poneil/lsmtree.pdf) - Original research paper
+- [LSM in a Week](https://skyzh.github.io/mini-lsm/) - Comprehensive tutorial
+- [RocksDB Architecture](https://github.com/facebook/rocksdb/wiki/Architecture-Guide) - Production LSM implementation
+- [Building LSM from Scratch](https://dev.to/justlorain/building-an-lsm-tree-storage-engine-from-scratch-3eom) - Practical guide
+
+### SIMD Optimization
 - [ARM NEON Programmer's Guide](https://developer.arm.com/documentation/102474/latest/)
 - [NEON Intrinsics Reference](https://developer.arm.com/architectures/instruction-sets/intrinsics/)
-- [Optimization Guide](https://developer.arm.com/documentation/102458/latest/)
-
-### Performance Analysis
-- [ARM Performance Libraries](https://developer.arm.com/tools-and-software/server-and-hpc/arm-architecture-tools/arm-performance-libraries)
-- [Linux perf on ARM](https://www.kernel.org/doc/html/latest/arm64/perf.html)
+- [Database SIMD Optimization](https://arxiv.org/abs/1612.01506) - Academic research
 
 ---
 
@@ -617,25 +623,25 @@ objdump -d neon_string_ops.o | grep -A20 neon_strcmp
 
 By the end of Sprint 4, you should have:
 
-1. **NEON string operations** with 4x speedup
-2. **Vectorized hash functions** with good distribution
-3. **Comprehensive benchmarks** comparing all implementations
-4. **Performance report** with analysis and recommendations
-5. **Integration** with existing codebase
-6. **Documentation** of optimization techniques
+1. **Complete LSM tree storage engine** with durability guarantees
+2. **SIMD-optimized operations** for bloom filters and key comparison
+3. **Efficient compaction strategy** maintaining performance
+4. **Comprehensive benchmarks** comparing LSM vs B+ tree
+5. **Performance analysis** with amplification measurements
+6. **Production-ready storage system** with concurrent access
 
 ---
 
 ## 🚀 Next Sprint Preview
 
 Sprint 5 will add production features:
-- Rust client library with safe API
-- Advanced search features (phrases, boolean)
-- Comprehensive testing framework
-- Deployment documentation
+- Multi-level compaction strategies
+- Write-ahead log replay and recovery
+- Distributed storage with replication
+- Performance monitoring and metrics
 
-Make sure optimizations are stable before adding new features!
+Make sure the storage engine is stable before adding distributed features!
 
 ---
 
-*Remember: Measure first, optimize second. Not all code benefits from SIMD!*
+*Remember: LSM trees excel at write-heavy workloads but require careful tuning for optimal performance!*

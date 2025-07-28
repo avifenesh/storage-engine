@@ -7,29 +7,37 @@ Realistic, measurable performance targets for a kernel-accelerated text search e
 
 ## 📊 Core Performance Metrics
 
-### Indexing Performance
+### Hash Storage Engine Performance
 | Metric | Target | Rationale |
 |--------|--------|-----------|
-| **Document Throughput** | 3,000 docs/sec | Based on simple tokenization and hash insertion |
-| **Total Index Time** | <30 seconds for 100K docs | Reasonable for development iterations |
-| **Memory During Indexing** | <500MB peak | Fits comfortably in modern systems |
-| **Token Processing** | 50K tokens/sec | Achievable with optimized C |
+| **Put Operations** | 100K+ ops/sec | Hash table with optimized collision handling |
+| **Get Operations** | 200K+ ops/sec | Direct hash lookup with SIMD optimization |
+| **Memory Usage** | <2x key+value size | Efficient hash table with 0.75 load factor |
+| **Concurrent Access** | 10K+ concurrent ops | Kernel-space with proper locking |
 
-### Search Performance
+### B+ Tree Storage Engine Performance
 | Metric | Target | Rationale |
 |--------|--------|-----------|
-| **Simple Query Latency** | <10ms | Single term lookup in hash table |
-| **Phrase Query Latency** | <50ms | Position list intersection |
-| **Boolean Query Latency** | <30ms | Set operations on posting lists |
-| **Concurrent Queries** | 100-500 QPS | Realistic with kernel spinlock protection |
+| **Sequential Writes** | 50K+ ops/sec | Optimized node structure and caching |
+| **Random Reads** | 20K+ ops/sec | Balanced tree with cache-friendly nodes |
+| **Range Query Latency** | <1ms for 1K results | Efficient leaf node iteration |
+| **Tree Height** | <6 levels for 10M keys | High branching factor (128-256) |
 
-### Memory Efficiency
+### LSM Tree Storage Engine Performance
 | Metric | Target | Rationale |
 |--------|--------|-----------|
-| **Index Size** | <3x raw text | Includes terms, positions, metadata |
-| **Runtime Memory** | <2GB for 100K docs | Reasonable for embedded/server use |
-| **Per-Document Overhead** | <1KB metadata | Doc ID, length, term count |
-| **Hash Table Load Factor** | 0.75 | Balance between memory and collisions |
+| **Write Throughput** | 200K+ ops/sec | Write-optimized with batching |
+| **Read Latency** | <2ms average | Bloom filters + memtable + SSTables |
+| **Compaction Pause** | <50ms | Background compaction with incremental approach |
+| **Write Amplification** | <3x | Efficient compaction strategy |
+
+### Distributed System Performance
+| Metric | Target | Rationale |
+|--------|--------|-----------|
+| **Replication Lag** | <10ms local cluster | Fast network with efficient Raft implementation |
+| **Leader Election** | <1 second | Quick failover for high availability |
+| **Cluster Scalability** | 5-10 nodes | Realistic for learning project |
+| **Consensus Overhead** | <20% of total throughput | Efficient log replication |
 
 ---
 

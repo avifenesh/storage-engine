@@ -109,14 +109,15 @@ MODULE_DESCRIPTION("Kernel-accelerated text search engine");
 
 ---
 
-### Issue #32: Implement IOCTL Interface for Document Operations
-**File**: `sprint-3-kernel-device/textsearch_ioctl.h`
+### Issue #32: Implement B+ Tree Operations (Insert, Search, Delete)
+**File**: `sprint-3-btree-storage/btree_operations.c`
 
 **Requirements**:
-- Define IOCTL commands for search operations
-- Create data structures for user-kernel communication
-- Implement command dispatch in ioctl handler
-- Validate all user input for security
+- Implement key insertion with automatic node splitting
+- Support exact key lookups and range queries
+- Handle key deletion with node merging
+- Maintain B+ tree invariants (balance, ordering)
+- Optimize for cache locality and memory usage
 
 **IOCTL Command Definitions**:
 ```c
@@ -221,12 +222,13 @@ static long textsearch_ioctl(struct file *file, unsigned int cmd,
 
 ---
 
-### Issue #33: Add In-Kernel Text Storage and Indexing
-**File**: `sprint-3-kernel-device/kernel_index.c`
+### Issue #33: Add Kernel-Space B+ Tree Implementation
+**File**: `sprint-3-btree-storage/kernel_btree.c`
 
 **Requirements**:
-- Port inverted index to kernel space
-- Use kernel memory allocation appropriately
+- Port B+ tree to kernel space with character device interface
+- Use kernel memory allocation (kmalloc/kfree/vmalloc)
+- Implement proper locking for concurrent access
 - Implement thread-safe data structures
 - Handle memory pressure gracefully
 
@@ -343,14 +345,14 @@ static int init_memory_pools(void) {
 
 ---
 
-### Issue #34: Implement Basic Search Functionality via IOCTL
-**File**: `sprint-3-kernel-device/kernel_search.c`
+### Issue #34: Build B+ Tree Performance Benchmarks
+**File**: `sprint-3-btree-storage/btree_benchmarks.c`
 
 **Requirements**:
-- Process search queries in kernel space
-- Calculate TF-IDF scores
-- Return ranked results to userspace
-- Implement result pagination
+- Create comprehensive benchmark suite for B+ tree operations
+- Compare with hash table performance from Sprint 2
+- Measure insertion, lookup, and range query performance
+- Test with different data sizes and access patterns
 
 **Search Implementation**:
 ```c
