@@ -1,30 +1,30 @@
 /*
  * Hash Storage Device Driver - Character Device Interface
- * 
+ *
  * Provides /dev/storage-hash character device with IOCTL interface
  * for high-performance hash table operations in kernel space.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/device.h>
 #include <linux/cdev.h>
-#include <linux/uaccess.h>
-#include <linux/slab.h>
-#include <linux/ioctl.h>
+#include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/fs.h>
+#include <linux/ioctl.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #define DEVICE_NAME "storage-hash"
 #define CLASS_NAME "storage_engine"
 
 /* IOCTL command definitions */
 #define HASH_IOC_MAGIC 'H'
-#define HASH_IOC_PUT    _IOW(HASH_IOC_MAGIC, 1, struct hash_operation)
-#define HASH_IOC_GET    _IOWR(HASH_IOC_MAGIC, 2, struct hash_operation)
+#define HASH_IOC_PUT _IOW(HASH_IOC_MAGIC, 1, struct hash_operation)
+#define HASH_IOC_GET _IOWR(HASH_IOC_MAGIC, 2, struct hash_operation)
 #define HASH_IOC_DELETE _IOW(HASH_IOC_MAGIC, 3, struct hash_operation)
-#define HASH_IOC_STATS  _IOR(HASH_IOC_MAGIC, 4, struct hash_stats)
-#define HASH_IOC_MAXNR  4
+#define HASH_IOC_STATS _IOR(HASH_IOC_MAGIC, 4, struct hash_stats)
+#define HASH_IOC_MAXNR 4
 
 /* Data structures for IOCTL operations */
 struct hash_operation {
@@ -43,10 +43,13 @@ struct hash_stats {
 /* External function declarations from hash_engine.c */
 extern int hash_engine_init(uint32_t bucket_count);
 extern void hash_engine_cleanup(void);
-extern int hash_put(const void *key, size_t key_len, const void *value, size_t value_len);
-extern int hash_get(const void *key, size_t key_len, void **value, size_t *value_len);
+extern int hash_put(const void *key, size_t key_len, const void *value,
+		    size_t value_len);
+extern int hash_get(const void *key, size_t key_len, void **value,
+		    size_t *value_len);
 extern int hash_delete(const void *key, size_t key_len);
-extern int hash_get_stats(uint32_t *item_count, uint32_t *bucket_count, uint32_t *memory_usage);
+extern int hash_get_stats(uint32_t *item_count, uint32_t *bucket_count,
+			  uint32_t *memory_usage);
 
 /* Device driver variables */
 static int major_number;
@@ -55,25 +58,30 @@ static struct device *hash_device = NULL;
 static struct cdev hash_cdev;
 static dev_t hash_dev_number;
 
-static int device_open(struct inode *inode, struct file *file)
+static int
+device_open(struct inode *inode, struct file *file)
 {
 	printk(KERN_INFO "storage-hash: Device opened\n");
 	return 0;
 }
 
-static int device_release(struct inode *inode, struct file *file)
+static int
+device_release(struct inode *inode, struct file *file)
 {
 	printk(KERN_INFO "storage-hash: Device closed\n");
 	return 0;
 }
 
-static ssize_t device_read(struct file *file, char __user *buffer, size_t len, loff_t *offset)
+static ssize_t
+device_read(struct file *file, char __user *buffer, size_t len, loff_t *offset)
 {
 	/* This device is IOCTL-only, no read operation */
 	return -ENOSYS;
 }
 
-static ssize_t device_write(struct file *file, const char __user *buffer, size_t len, loff_t *offset)
+static ssize_t
+device_write(struct file *file, const char __user *buffer, size_t len,
+	     loff_t *offset)
 {
 	/* This device is IOCTL-only, no write operation */
 	return -ENOSYS;
@@ -82,7 +90,8 @@ static ssize_t device_write(struct file *file, const char __user *buffer, size_t
 /*
  * Handle PUT operation - store key-value pair
  */
-static long handle_put_operation(struct hash_operation __user *arg)
+static long
+handle_put_operation(struct hash_operation __user *arg)
 {
 	struct hash_operation op;
 	void *kernel_key = NULL;
@@ -92,7 +101,8 @@ static long handle_put_operation(struct hash_operation __user *arg)
 	if (copy_from_user(&op, arg, sizeof(op)))
 		return -EFAULT;
 
-	if (op.key_len == 0 || op.value_len == 0 || op.key_len > 256 || op.value_len > 4096)
+	if (op.key_len == 0 || op.value_len == 0 || op.key_len > 256
+	    || op.value_len > 4096)
 		return -EINVAL;
 
 	/* Allocate kernel buffers */
@@ -129,7 +139,8 @@ cleanup:
 /*
  * Handle GET operation - retrieve value by key
  */
-static long handle_get_operation(struct hash_operation __user *arg)
+static long
+handle_get_operation(struct hash_operation __user *arg)
 {
 	struct hash_operation op;
 	void *kernel_key = NULL;
@@ -189,7 +200,8 @@ cleanup:
 /*
  * Handle DELETE operation - remove key-value pair
  */
-static long handle_delete_operation(struct hash_operation __user *arg)
+static long
+handle_delete_operation(struct hash_operation __user *arg)
 {
 	struct hash_operation op;
 	void *kernel_key = NULL;
@@ -223,12 +235,14 @@ cleanup:
 /*
  * Handle STATS operation - get hash table statistics
  */
-static long handle_stats_operation(struct hash_stats __user *arg)
+static long
+handle_stats_operation(struct hash_stats __user *arg)
 {
 	struct hash_stats stats;
 	int ret;
 
-	ret = hash_get_stats(&stats.item_count, &stats.bucket_count, &stats.memory_usage);
+	ret = hash_get_stats(&stats.item_count, &stats.bucket_count,
+			     &stats.memory_usage);
 	if (ret)
 		return ret;
 
@@ -241,7 +255,8 @@ static long handle_stats_operation(struct hash_stats __user *arg)
 /*
  * IOCTL handler
  */
-static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long
+device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 
@@ -270,7 +285,8 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case HASH_IOC_DELETE:
-		ret = handle_delete_operation((struct hash_operation __user *)arg);
+		ret = handle_delete_operation(
+		    (struct hash_operation __user *)arg);
 		break;
 
 	case HASH_IOC_STATS:
@@ -298,7 +314,8 @@ static struct file_operations fops = {
 /*
  * Module initialization
  */
-static int __init hash_device_init(void)
+static int __init
+hash_device_init(void)
 {
 	int ret;
 
@@ -307,14 +324,16 @@ static int __init hash_device_init(void)
 	/* Initialize hash engine */
 	ret = hash_engine_init(1024);
 	if (ret) {
-		printk(KERN_ALERT "storage-hash: Failed to initialize hash engine\n");
+		printk(KERN_ALERT
+		       "storage-hash: Failed to initialize hash engine\n");
 		return ret;
 	}
 
 	/* Allocate major number dynamically */
 	ret = alloc_chrdev_region(&hash_dev_number, 0, 1, DEVICE_NAME);
 	if (ret < 0) {
-		printk(KERN_ALERT "storage-hash: Failed to allocate major number\n");
+		printk(KERN_ALERT
+		       "storage-hash: Failed to allocate major number\n");
 		hash_engine_cleanup();
 		return ret;
 	}
@@ -327,7 +346,8 @@ static int __init hash_device_init(void)
 	/* Add character device to system */
 	ret = cdev_add(&hash_cdev, hash_dev_number, 1);
 	if (ret < 0) {
-		printk(KERN_ALERT "storage-hash: Failed to add character device\n");
+		printk(KERN_ALERT
+		       "storage-hash: Failed to add character device\n");
 		unregister_chrdev_region(hash_dev_number, 1);
 		hash_engine_cleanup();
 		return ret;
@@ -336,7 +356,8 @@ static int __init hash_device_init(void)
 	/* Create device class */
 	hash_class = class_create(THIS_MODULE, CLASS_NAME);
 	if (IS_ERR(hash_class)) {
-		printk(KERN_ALERT "storage-hash: Failed to create device class\n");
+		printk(KERN_ALERT
+		       "storage-hash: Failed to create device class\n");
 		cdev_del(&hash_cdev);
 		unregister_chrdev_region(hash_dev_number, 1);
 		hash_engine_cleanup();
@@ -344,7 +365,8 @@ static int __init hash_device_init(void)
 	}
 
 	/* Create device */
-	hash_device = device_create(hash_class, NULL, hash_dev_number, NULL, DEVICE_NAME);
+	hash_device = device_create(hash_class, NULL, hash_dev_number, NULL,
+				    DEVICE_NAME);
 	if (IS_ERR(hash_device)) {
 		printk(KERN_ALERT "storage-hash: Failed to create device\n");
 		class_destroy(hash_class);
@@ -354,9 +376,11 @@ static int __init hash_device_init(void)
 		return PTR_ERR(hash_device);
 	}
 
-	printk(KERN_INFO "storage-hash: Device driver initialized successfully\n");
+	printk(KERN_INFO
+	       "storage-hash: Device driver initialized successfully\n");
 	printk(KERN_INFO "storage-hash: Major number: %d\n", major_number);
-	printk(KERN_INFO "storage-hash: Device created: /dev/%s\n", DEVICE_NAME);
+	printk(KERN_INFO "storage-hash: Device created: /dev/%s\n",
+	       DEVICE_NAME);
 
 	return 0;
 }
@@ -364,7 +388,8 @@ static int __init hash_device_init(void)
 /*
  * Module cleanup
  */
-static void __exit hash_device_exit(void)
+static void __exit
+hash_device_exit(void)
 {
 	printk(KERN_INFO "storage-hash: Cleaning up device driver\n");
 

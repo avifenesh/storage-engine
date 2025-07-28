@@ -1,22 +1,22 @@
 /*
  * Hash Table Storage Engine - Core Implementation
- * 
+ *
  * ARM-optimized kernel hash table with collision resolution for
  * high-performance storage operations via /dev/storage-hash.
  */
 
-#include <linux/module.h>
+#include <linux/atomic.h>
+#include <linux/errno.h>
+#include <linux/hash.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/atomic.h>
-#include <linux/hash.h>
 #include <linux/string.h>
-#include <linux/errno.h>
 
-#define HASH_BUCKET_COUNT_DEFAULT	1024
-#define HASH_MAX_KEY_SIZE		256
-#define HASH_MAX_VALUE_SIZE		4096
+#define HASH_BUCKET_COUNT_DEFAULT 1024
+#define HASH_MAX_KEY_SIZE 256
+#define HASH_MAX_VALUE_SIZE 4096
 
 /*
  * Hash bucket entry - single key-value pair with chaining for collisions
@@ -53,7 +53,8 @@ static struct hash_engine *global_engine = NULL;
 /*
  * Simple hash function - will be optimized with ARM NEON later
  */
-static uint32_t hash_function(const void *key, size_t key_len, uint32_t bucket_count)
+static uint32_t
+hash_function(const void *key, size_t key_len, uint32_t bucket_count)
 {
 	uint32_t hash = 0;
 	const unsigned char *data = (const unsigned char *)key;
@@ -69,7 +70,9 @@ static uint32_t hash_function(const void *key, size_t key_len, uint32_t bucket_c
 /*
  * Compare two keys for equality
  */
-static int key_compare(const void *key1, size_t key1_len, const void *key2, size_t key2_len)
+static int
+key_compare(const void *key1, size_t key1_len, const void *key2,
+	    size_t key2_len)
 {
 	if (key1_len != key2_len)
 		return 1;
@@ -79,8 +82,9 @@ static int key_compare(const void *key1, size_t key1_len, const void *key2, size
 /*
  * Create a new hash entry
  */
-static struct hash_entry *hash_entry_create(const void *key, size_t key_len,
-					    const void *value, size_t value_len)
+static struct hash_entry *
+hash_entry_create(const void *key, size_t key_len, const void *value,
+		  size_t value_len)
 {
 	struct hash_entry *entry;
 
@@ -116,7 +120,8 @@ static struct hash_entry *hash_entry_create(const void *key, size_t key_len,
 /*
  * Free a hash entry
  */
-static void hash_entry_destroy(struct hash_entry *entry)
+static void
+hash_entry_destroy(struct hash_entry *entry)
 {
 	if (entry) {
 		kfree(entry->key);
@@ -128,7 +133,8 @@ static void hash_entry_destroy(struct hash_entry *entry)
 /*
  * Initialize hash engine
  */
-int hash_engine_init(uint32_t bucket_count)
+int
+hash_engine_init(uint32_t bucket_count)
 {
 	uint32_t i;
 
@@ -142,7 +148,8 @@ int hash_engine_init(uint32_t bucket_count)
 	if (!global_engine)
 		return -ENOMEM;
 
-	global_engine->buckets = kmalloc(bucket_count * sizeof(struct hash_bucket), GFP_KERNEL);
+	global_engine->buckets
+	    = kmalloc(bucket_count * sizeof(struct hash_bucket), GFP_KERNEL);
 	if (!global_engine->buckets) {
 		kfree(global_engine);
 		global_engine = NULL;
@@ -159,14 +166,16 @@ int hash_engine_init(uint32_t bucket_count)
 		spin_lock_init(&global_engine->buckets[i].lock);
 	}
 
-	printk(KERN_INFO "hash_engine: Initialized with %u buckets\n", bucket_count);
+	printk(KERN_INFO "hash_engine: Initialized with %u buckets\n",
+	       bucket_count);
 	return 0;
 }
 
 /*
  * Cleanup hash engine
  */
-void hash_engine_cleanup(void)
+void
+hash_engine_cleanup(void)
 {
 	uint32_t i;
 	struct hash_entry *entry, *next;
@@ -195,7 +204,8 @@ void hash_engine_cleanup(void)
 /*
  * Put key-value pair into hash table
  */
-int hash_put(const void *key, size_t key_len, const void *value, size_t value_len)
+int
+hash_put(const void *key, size_t key_len, const void *value, size_t value_len)
 {
 	uint32_t bucket_idx;
 	struct hash_bucket *bucket;
@@ -220,7 +230,8 @@ int hash_put(const void *key, size_t key_len, const void *value, size_t value_le
 	/* Check if key already exists and update */
 	entry = bucket->head;
 	while (entry) {
-		if (key_compare(entry->key, entry->key_len, key, key_len) == 0) {
+		if (key_compare(entry->key, entry->key_len, key, key_len)
+		    == 0) {
 			/* Update existing entry */
 			kfree(entry->value);
 			entry->value = kmalloc(value_len, GFP_ATOMIC);
@@ -242,7 +253,8 @@ int hash_put(const void *key, size_t key_len, const void *value, size_t value_le
 	new_entry->next = bucket->head;
 	bucket->head = new_entry;
 	atomic_inc(&global_engine->item_count);
-	atomic_add(key_len + value_len + sizeof(struct hash_entry), &global_engine->total_memory);
+	atomic_add(key_len + value_len + sizeof(struct hash_entry),
+		   &global_engine->total_memory);
 
 	spin_unlock_irqrestore(&bucket->lock, flags);
 	return 0;
@@ -251,7 +263,8 @@ int hash_put(const void *key, size_t key_len, const void *value, size_t value_le
 /*
  * Get value by key from hash table
  */
-int hash_get(const void *key, size_t key_len, void **value, size_t *value_len)
+int
+hash_get(const void *key, size_t key_len, void **value, size_t *value_len)
 {
 	uint32_t bucket_idx;
 	struct hash_bucket *bucket;
@@ -272,7 +285,8 @@ int hash_get(const void *key, size_t key_len, void **value, size_t *value_len)
 
 	entry = bucket->head;
 	while (entry) {
-		if (key_compare(entry->key, entry->key_len, key, key_len) == 0) {
+		if (key_compare(entry->key, entry->key_len, key, key_len)
+		    == 0) {
 			/* Found the key - copy value */
 			result_value = kmalloc(entry->value_len, GFP_ATOMIC);
 			if (!result_value) {
@@ -295,7 +309,8 @@ int hash_get(const void *key, size_t key_len, void **value, size_t *value_len)
 /*
  * Delete key-value pair from hash table
  */
-int hash_delete(const void *key, size_t key_len)
+int
+hash_delete(const void *key, size_t key_len)
 {
 	uint32_t bucket_idx;
 	struct hash_bucket *bucket;
@@ -316,7 +331,8 @@ int hash_delete(const void *key, size_t key_len)
 	prev = NULL;
 	entry = bucket->head;
 	while (entry) {
-		if (key_compare(entry->key, entry->key_len, key, key_len) == 0) {
+		if (key_compare(entry->key, entry->key_len, key, key_len)
+		    == 0) {
 			/* Found the key - remove it */
 			if (prev)
 				prev->next = entry->next;
@@ -324,7 +340,8 @@ int hash_delete(const void *key, size_t key_len)
 				bucket->head = entry->next;
 
 			atomic_dec(&global_engine->item_count);
-			atomic_sub(entry->key_len + entry->value_len + sizeof(struct hash_entry),
+			atomic_sub(entry->key_len + entry->value_len
+				       + sizeof(struct hash_entry),
 				   &global_engine->total_memory);
 
 			spin_unlock_irqrestore(&bucket->lock, flags);
@@ -342,7 +359,9 @@ int hash_delete(const void *key, size_t key_len)
 /*
  * Get hash engine statistics
  */
-int hash_get_stats(uint32_t *item_count, uint32_t *bucket_count, uint32_t *memory_usage)
+int
+hash_get_stats(uint32_t *item_count, uint32_t *bucket_count,
+	       uint32_t *memory_usage)
 {
 	if (!global_engine)
 		return -ENODEV;
