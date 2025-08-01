@@ -1,6 +1,7 @@
 # Sprint 1.5: EC2 Cross-Compilation & Raspberry Pi Hardware Development Environment
 
 ## Overview
+
 This sprint establishes a professional kernel development workflow using Docker cross-compilation on EC2 and deployment to actual Raspberry Pi hardware. This provides authentic testing on real ARM hardware while maintaining a clean development environment separation.
 
 ## Architecture
@@ -38,9 +39,11 @@ Internet
 ## Tasks
 
 ### Issue #52: Complete EC2 + Raspberry Pi Development Setup ✅ COMPLETED
+
 **GitHub Issue:** [Sprint 1.5: EC2 Cross-Compilation & Raspberry Pi Hardware Development Environment](https://github.com/avifenesh/storage-engine/issues/52)
 
 **Learning Objectives:**
+
 - Master Docker cross-compilation for Raspberry Pi
 - Establish network connectivity from EC2 to local Raspberry Pi
 - Create automated deployment pipeline
@@ -49,16 +52,19 @@ Internet
 
 ---
 
-### Task 1: Docker Cross-Compilation Environment 📋 PENDING
+### Task 1: Docker Cross-Compilation Environment ✅ COMPLETED
+
 **Directory:** `setup/docker/`
 **Learning Objectives:**
+
 - Create Raspberry Pi cross-compilation container
 - Set up proper kernel headers and build tools
 - Establish consistent build environment
 
 **Dockerfile** (`setup/docker/rpi-cross-compile/Dockerfile`):
+
 ```dockerfile
-FROM arm64v8/debian:bookworm
+FROM docker.io/arm64v8/debian:bookworm
 
 # Install cross-compilation tools
 RUN apt-get update && apt-get install -y \
@@ -97,27 +103,32 @@ CMD ["/bin/bash"]
 ```
 
 **Build Script** (`setup/docker/build-container.sh`):
+
 ```bash
 #!/bin/bash
-cd setup/docker/rpi-cross-compile
+cd docker/rpi-cross-compile
 docker build -t rpi-cross-compile:latest .
 echo "Cross-compilation container ready!"
 ```
 
 **Key Concepts:**
+
 - ARM64 native compilation (not cross-arch)
 - Raspberry Pi specific kernel headers
 - Consistent build environment isolation
 - Automated kernel module compilation
 
 **Resources:**
+
 - [Raspberry Pi Kernel Building](https://www.raspberrypi.org/documentation/computers/linux_kernel.html)
 
 ---
 
 ### Task 2: Network Connectivity Solutions 📋 PENDING
+
 **Files:** `setup/network/setup-tunnel.sh`
 **Learning Objectives:**
+
 - Establish secure connection from EC2 to local Raspberry Pi
 - Configure reverse SSH tunnel or VPN
 - Automate connection management
@@ -125,6 +136,7 @@ echo "Cross-compilation container ready!"
 **Option 1 - Reverse SSH Tunnel (Recommended):**
 
 **On Raspberry Pi** (`setup/network/pi-tunnel-client.sh`):
+
 ```bash
 #!/bin/bash
 # Raspberry Pi - Create reverse tunnel to EC2
@@ -144,6 +156,7 @@ autossh -M 20000 -N -R ${REMOTE_TUNNEL_PORT}:localhost:${LOCAL_SSH_PORT} \
 ```
 
 **Systemd Service for Persistent Tunnel** (`/etc/systemd/system/ec2-tunnel.service`):
+
 ```ini
 [Unit]
 Description=Reverse SSH Tunnel to EC2
@@ -162,6 +175,7 @@ WantedBy=multi-user.target
 ```
 
 **On EC2** (`setup/network/test-connection.sh`):
+
 ```bash
 #!/bin/bash
 # Test connection to Raspberry Pi through tunnel
@@ -177,6 +191,7 @@ fi
 ```
 
 **Option 2 - VPN Solution:**
+
 ```bash
 # If you have VPN access to local network
 # Configure WireGuard or OpenVPN client on EC2
@@ -184,25 +199,30 @@ fi
 ```
 
 **Key Concepts:**
+
 - Reverse SSH tunneling for NAT traversal
 - Persistent connection with autossh
 - Systemd service management
 - Connection testing and monitoring
 
 **Resources:**
+
 - [SSH Tunneling Guide](https://www.ssh.com/academy/ssh/tunneling)
 - [Autossh Documentation](https://linux.die.net/man/1/autossh)
 
 ---
 
 ### Task 3: Raspberry Pi Hardware Setup 📋 PENDING
+
 **Files:** `setup/pi/configure-dev-environment.sh`
 **Learning Objectives:**
+
 - Configure Raspberry Pi for kernel development
 - Install required packages and headers
 - Set up development directories
 
 **Raspberry Pi Setup Script** (`setup/pi/setup-pi.sh`):
+
 ```bash
 #!/bin/bash
 # Run this on the Raspberry Pi
@@ -270,24 +290,29 @@ echo "Raspberry Pi development environment ready!"
 ```
 
 **Key Concepts:**
+
 - Raspberry Pi specific kernel headers
 - Development directory structure
 - Kernel module compilation testing
 - Hardware-specific optimizations
 
 **Resources:**
+
 - [Raspberry Pi OS Documentation](https://www.raspberrypi.org/documentation/)
 
 ---
 
 ### Task 4: Automated Deployment Pipeline 📋 PENDING
+
 **Files:** `setup/deploy/deploy-to-pi.sh`, `Makefile` updates
 **Learning Objectives:**
+
 - Create automated build and deployment workflow
 - Implement error handling and logging
 - Establish testing automation
 
 **Deployment Script** (`setup/deploy/deploy-to-pi.sh`):
+
 ```bash
 #!/bin/bash
 # Automated deployment from EC2 to Raspberry Pi
@@ -332,9 +357,9 @@ check_pi_connection() {
 # Function to build modules in Docker
 build_modules() {
     log "Building modules in Docker container..."
-    
+
     docker run --rm -v $(pwd):/workspace rpi-cross-compile:latest build-modules
-    
+
     if [ $? -eq 0 ]; then
         log "✅ Module compilation successful"
     else
@@ -346,22 +371,22 @@ build_modules() {
 # Function to deploy modules
 deploy_modules() {
     log "Deploying modules to Raspberry Pi..."
-    
+
     # Copy modules to Pi
     scp -P $PI_PORT *.ko $PI_CONNECTION:$MODULE_DIR/
-    
+
     # Copy test scripts
     scp -P $PI_PORT setup/deploy/test-modules.sh $PI_CONNECTION:$MODULE_DIR/
-    
+
     log "✅ Modules deployed successfully"
 }
 
 # Function to run tests on Pi
 run_tests() {
     log "Running tests on Raspberry Pi..."
-    
+
     ssh -p $PI_PORT $PI_CONNECTION "cd $MODULE_DIR && ./test-modules.sh"
-    
+
     if [ $? -eq 0 ]; then
         log "✅ All tests passed"
     else
@@ -372,12 +397,12 @@ run_tests() {
 # Main deployment flow
 main() {
     log "Starting deployment pipeline..."
-    
+
     check_pi_connection || exit 1
     build_modules || exit 1
     deploy_modules || exit 1
     run_tests
-    
+
     log "🎉 Deployment pipeline completed!"
 }
 
@@ -386,6 +411,7 @@ main "$@"
 ```
 
 **Test Script for Pi** (`setup/deploy/test-modules.sh`):
+
 ```bash
 #!/bin/bash
 # Run this on Raspberry Pi to test deployed modules
@@ -395,30 +421,31 @@ echo "Testing deployed kernel modules..."
 for module in *.ko; do
     if [ -f "$module" ]; then
         echo "Testing module: $module"
-        
+
         # Load module
         sudo insmod "$module"
-        
+
         # Check if loaded
         if lsmod | grep -q "${module%.ko}"; then
             echo "✅ $module loaded successfully"
-            
+
             # Check dmesg for messages
             dmesg | tail -5
-            
+
             # Unload module
             sudo rmmod "${module%.ko}"
             echo "✅ $module unloaded successfully"
         else
             echo "❌ $module failed to load"
         fi
-        
+
         echo "---"
     fi
 done
 ```
 
 **Makefile Integration**:
+
 ```makefile
 # Add these targets to main Makefile
 
@@ -442,24 +469,29 @@ clean-pi:
 ```
 
 **Key Concepts:**
+
 - Automated CI/CD pipeline
 - Error handling and logging
 - Remote testing automation
 - Build verification
 
 **Resources:**
+
 - [Bash Scripting Best Practices](https://bertvv.github.io/cheat-sheets/Bash.html)
 
 ---
 
 ### Task 5: Performance Benchmarking Setup 📋 PENDING
+
 **Files:** `setup/benchmarks/pi-performance.sh`
 **Learning Objectives:**
+
 - Establish baseline performance metrics
 - Create automated benchmark suite
 - Compare development vs production performance
 
 **Benchmark Script** (`setup/benchmarks/pi-performance.sh`):
+
 ```bash
 #!/bin/bash
 # Raspberry Pi performance benchmarking
@@ -484,7 +516,7 @@ dd if=/dev/zero of=/tmp/test bs=1M count=100 2>&1 | grep copied
 echo "CPU performance test..."
 time pi=$(echo "scale=1000; 4*a(1)" | bc -l)
 
-# I/O performance  
+# I/O performance
 echo "I/O performance test..."
 sync && echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 time dd if=/dev/zero of=/tmp/iotest bs=4k count=10000 2>/dev/null
@@ -494,6 +526,7 @@ echo "Baseline tests completed!"
 ```
 
 **Key Concepts:**
+
 - Hardware performance characterization
 - Baseline establishment for optimization
 - Real hardware vs emulation comparison
@@ -501,13 +534,16 @@ echo "Baseline tests completed!"
 ---
 
 ### Task 6: Documentation and Automation 📋 PENDING
+
 **Files:** `setup/README.md`, `setup/quick-start.sh`
 **Learning Objectives:**
+
 - Document complete workflow
 - Create one-command setup
 - Establish troubleshooting guides
 
 **Quick Start Script** (`setup/quick-start.sh`):
+
 ```bash
 #!/bin/bash
 # One-command setup for EC2 + Raspberry Pi development
@@ -544,6 +580,7 @@ echo "  make clean-pi      # Clean Pi modules"
 5. **Debugging**: SSH to Pi for interactive debugging and profiling
 
 ## Sprint Goals
+
 - Establish EC2 to Raspberry Pi development pipeline
 - Master Docker cross-compilation for ARM kernel modules
 - Create automated deployment and testing workflow
@@ -551,6 +588,7 @@ echo "  make clean-pi      # Clean Pi modules"
 - Document reproducible professional development setup
 
 ## Success Criteria
+
 - [ ] Docker cross-compilation container builds successfully
 - [ ] Network connection from EC2 to Raspberry Pi established
 - [ ] Automated deployment pipeline functional
@@ -563,11 +601,13 @@ echo "  make clean-pi      # Clean Pi modules"
 **EC2 Instance (Public)** ← Internet → **Your Location** → **Raspberry Pi (Private)**
 
 Connection via:
+
 - **Reverse SSH Tunnel**: Pi connects out to EC2, creates tunnel for EC2 to reach Pi
 - **Port Forward**: EC2:2222 → Pi:22
 - **Authentication**: SSH keys for security
 
 ## Performance Expectations
+
 - **Cross-compilation**: 2-5x faster than Pi native compilation
 - **Deployment**: ~30 seconds for typical module
 - **SSH Latency**: <100ms via tunnel (depends on internet)
@@ -575,6 +615,7 @@ Connection via:
 - **Development Cycle**: Code → Build → Deploy → Test in <2 minutes
 
 ## Security Considerations
+
 - SSH key-based authentication only
 - EC2 security groups limiting access
 - Raspberry Pi firewall configuration
@@ -582,4 +623,5 @@ Connection via:
 - Separate development and production credentials
 
 ## Next Sprint Preview
+
 Sprint 2A will focus on user-space hash table implementation using this established development environment. The Docker cross-compilation and Raspberry Pi deployment pipeline will accelerate the development-test cycle for all subsequent storage engine sprints.
