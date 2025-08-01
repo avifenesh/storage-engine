@@ -40,7 +40,7 @@ Internet
 
 ### Issue #52: Complete EC2 + Raspberry Pi Development Setup ✅ COMPLETED
 
-**GitHub Issue:** [Sprint 1.5: EC2 Cross-Compilation & Raspberry Pi Hardware Development Environment](https://github.com/avifenesh/storage-engine/issues/52)
+**GitHub Issue:** [Sprint 1.5: EC2 Cross-Compilation & Raspberry Pi Hardware Development Environment](#) <!-- Update with actual issue URL -->
 
 **Learning Objectives:**
 
@@ -66,7 +66,7 @@ Internet
 ```dockerfile
 FROM docker.io/arm64v8/debian:bookworm
 
-# Install cross-compilation tools
+# Install native ARM64 compilation tools (not cross-compilation since we're on ARM64)
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
@@ -84,7 +84,7 @@ RUN apt-get update && apt-get install -y \
 RUN git clone --depth=1 --branch=rpi-6.6.y \
     https://github.com/raspberrypi/linux.git /usr/src/linux-rpi
 
-# Configure kernel headers
+# Configure kernel headers (bcm2711 for Pi 4, bcm2712 for Pi 5)
 WORKDIR /usr/src/linux-rpi
 RUN make ARCH=arm64 bcm2711_defconfig
 RUN make ARCH=arm64 modules_prepare
@@ -93,7 +93,7 @@ RUN make ARCH=arm64 modules_prepare
 WORKDIR /workspace
 ENV KERNEL_DIR=/usr/src/linux-rpi
 ENV ARCH=arm64
-ENV CROSS_COMPILE=aarch64-linux-gnu-
+# No CROSS_COMPILE needed for native ARM64 compilation
 
 # Create build helper script
 RUN echo '#!/bin/bash\nmake -C $KERNEL_DIR M=/workspace modules "$@"' > /usr/local/bin/build-modules
@@ -113,8 +113,8 @@ echo "Cross-compilation container ready!"
 
 **Key Concepts:**
 
-- ARM64 native compilation (not cross-arch)
-- Raspberry Pi specific kernel headers
+- ARM64 native compilation on ARM64 EC2 instance
+- Raspberry Pi specific kernel headers (bcm2711 for Pi 4, bcm2712 for Pi 5)
 - Consistent build environment isolation
 - Automated kernel module compilation
 
@@ -173,6 +173,8 @@ Environment="AUTOSSH_GATETIME=0"
 [Install]
 WantedBy=multi-user.target
 ```
+
+**Note:** Replace `YOUR-EC2-PUBLIC-IP` with your actual EC2 instance's public IP address.
 
 **On EC2** (`setup/network/test-connection.sh`):
 
@@ -240,7 +242,8 @@ sudo apt install -y \
     linux-headers-$(uname -r) \
     dkms \
     tree \
-    htop
+    htop \
+    bc  # Needed for performance benchmarks
 
 # Create development directories
 mkdir -p ~/development/{modules,logs,backups}
@@ -268,8 +271,16 @@ MODULE_DESCRIPTION("Development Environment Test");
 MODULE_VERSION("1.0");
 EOF
 
-# Create Makefile
-echo "obj-m += test_module.o" > ~/development/Makefile
+# Create proper Makefile for kernel module
+cat > ~/development/Makefile << 'EOF'
+obj-m += test_module.o
+
+all:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+
+clean:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+EOF
 
 # Test compilation
 cd ~/development
@@ -321,7 +332,7 @@ set -e  # Exit on any error
 
 PI_CONNECTION="pi@localhost"
 PI_PORT="2222"
-MODULE_DIR="~/development/modules"
+MODULE_DIR="/home/pi/development/modules"  # Use absolute path for SSH
 LOG_FILE="deployment.log"
 
 # Colors for output
@@ -461,11 +472,16 @@ deploy: docker-build
 
 test-pi:
 	@echo "Running tests on Raspberry Pi..."
-	ssh -p 2222 pi@localhost "cd ~/development/modules && ./test-modules.sh"
+	ssh -p $(PI_PORT) $(PI_CONNECTION) "cd $(MODULE_DIR) && ./test-modules.sh"
 
 clean-pi:
 	@echo "Cleaning modules on Raspberry Pi..."
-	ssh -p 2222 pi@localhost "cd ~/development/modules && rm -f *.ko && sudo dmesg -c > /dev/null"
+	ssh -p $(PI_PORT) $(PI_CONNECTION) "cd $(MODULE_DIR) && rm -f *.ko && sudo dmesg -c > /dev/null"
+
+# Variables for SSH connection
+PI_CONNECTION ?= pi@localhost
+PI_PORT ?= 2222
+MODULE_DIR ?= /home/pi/development/modules
 ```
 
 **Key Concepts:**
@@ -512,9 +528,13 @@ echo "===================================="
 echo "Memory bandwidth test..."
 dd if=/dev/zero of=/tmp/test bs=1M count=100 2>&1 | grep copied
 
-# CPU performance
+# CPU performance (requires bc package)
 echo "CPU performance test..."
-time pi=$(echo "scale=1000; 4*a(1)" | bc -l)
+if command -v bc >/dev/null 2>&1; then
+    time pi=$(echo "scale=1000; 4*a(1)" | bc -l)
+else
+    echo "bc not installed, skipping CPU benchmark"
+fi
 
 # I/O performance
 echo "I/O performance test..."
@@ -534,6 +554,8 @@ echo "Baseline tests completed!"
 ---
 
 ### Task 6: Documentation and Automation 📋 PENDING
+
+**Important Note:** This sprint uses native ARM64 compilation, not cross-compilation, since both the EC2 instance and Raspberry Pi are ARM64 architectures.
 
 **Files:** `setup/README.md`, `setup/quick-start.sh`
 **Learning Objectives:**

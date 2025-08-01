@@ -6,7 +6,7 @@ A personal learning project to understand C systems programming, Linux kernel de
 
 This is a learning project focused on:
 - Linux kernel module development
-- Storage engine algorithms (hash tables, B+ trees, LSM trees)
+- Storage engine algorithms (hash tables, B+ trees)
 - ARM64 optimization with NEON SIMD
 - Memory management and performance analysis
 

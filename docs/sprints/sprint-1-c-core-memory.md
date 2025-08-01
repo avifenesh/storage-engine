@@ -3,6 +3,10 @@
 ## Overview
 This sprint focuses on refreshing core C programming concepts, memory management, and foundational knowledge needed for kernel development. All tasks build towards understanding memory operations essential for high-performance vector operations.
 
+**Duration:** 1 week  
+**Prerequisites:** Basic C programming knowledge  
+**Target Platform:** ARM64 Linux
+
 ## Tasks
 
 ### Issue #1: Review pointer operations in C ✅ COMPLETED
@@ -18,6 +22,7 @@ This sprint focuses on refreshing core C programming concepts, memory management
 - Dereference operator: `*ptr`
 - Pointer arithmetic: `ptr + 1`, `ptr++`
 - Function pointers: `int (*func_ptr)(int, int)`
+- Null pointer checks: Always validate before dereferencing
 
 **Resources:**
 - [Pointer operations guide](https://beej.us/guide/bgc/html/split/pointers.html)
@@ -73,6 +78,8 @@ ptr = NULL; // Prevent use-after-free
 - 128-bit vector registers require 16-byte alignment
 - Load/store multiple instructions benefit from alignment
 - Cache line size: typically 64 bytes
+- NEON SIMD operations perform best with aligned data
+- Misaligned access may cause performance penalties
 
 **Resources:**
 - [Data structure alignment reference](https://www.geeksforgeeks.org/data-structure-alignment-in-c/)
@@ -103,7 +110,7 @@ typedef struct {
 
 ---
 
-### Issue #5: Learn function pointers for callback dispatchers 🔄 IN PROGRESS
+### Issue #5: Learn function pointers for callback dispatchers ✅ COMPLETED
 **File:** `vec_dispatcher.c`
 **Learning Objectives:**
 - Implement callback-based function dispatch
@@ -130,7 +137,7 @@ typedef struct {
 
 ---
 
-### Issue #6: Setup Makefile with GDB integration 📋 PENDING
+### Issue #6: Setup Makefile with GDB integration ✅ COMPLETED
 **Learning Objectives:**
 - Create ARM64-optimized build system
 - Integrate debugging and profiling tools
@@ -158,6 +165,18 @@ CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
 - Understand ARM64/NEON alignment requirements
 - Build foundation for kernel development
 - Establish development and debugging workflow
+- Practice defensive programming with proper error handling
+- Learn performance implications of memory layout
+
+## Common Pitfalls to Avoid
+- Memory leaks: Always pair malloc/free
+- Buffer overflows: Validate array bounds
+- Use-after-free: Set pointers to NULL after freeing
+- Alignment violations: Use proper attributes for SIMD data
+- Uninitialized memory: Always initialize allocated memory
 
 ## Next Sprint Preview
 Sprint 2 will focus on system programming with IOCTL interfaces and character device drivers, building on the memory management foundation established here.
+
+## Summary
+This sprint established the critical memory management fundamentals needed for high-performance storage engine development. The hands-on exercises with pointers, dynamic memory, alignment, and function dispatchers provide the essential building blocks for implementing efficient storage engines on ARM64 systems.
