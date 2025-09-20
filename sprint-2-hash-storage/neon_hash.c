@@ -5,6 +5,7 @@ uint32_t
 neon_hash_function(const void *key, size_t len)
 {
 	// Scalar placeholder (FNV-1a). Replace with NEON where available.
+	// TODO: Implement ARM NEON vectorized version for better performance
 	const unsigned char *p = (const unsigned char *)key;
 	uint32_t h = 2166136261u;
 	for (size_t i = 0; i < len; i++) {
@@ -27,3 +28,5 @@ neon_key_compare(const void *key1, size_t key1_len, const void *key2,
 	}
 	return (key1_len < key2_len) ? -1 : (key1_len > key2_len) ? 1 : 0;
 }
+
+// TODO: Add NEON-optimized version of key_compare if possible for batch comparisons
