@@ -103,7 +103,8 @@ main(void)
 
 	/* Test 1: Float32 operations */
 	printf("🔢 Testing float32 operations:\n");
-	a = 3.5f; b = 2.0f; /* result_f32 assigned by operations */
+	a = 3.5f;
+	b = 2.0f; /* result_f32 assigned by operations */
 
 	printf("  Input: a=%.2f, b=%.2f\n", a, b);
 
@@ -146,7 +147,7 @@ main(void)
 		/* Verify dot product manually: (1*2 + 2*3 + 3*1 + 4*2) =
 		 * 2+6+3+8 = 19 */
 		expected = vec_a.x * vec_b.x + vec_a.y * vec_b.y
-			     + vec_a.z * vec_b.z + vec_a.w * vec_b.w;
+			   + vec_a.z * vec_b.z + vec_a.w * vec_b.w;
 		printf("  🔍 Manual verification: %.1f (should match)\n",
 		       expected);
 	}

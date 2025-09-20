@@ -1,17 +1,17 @@
 #ifndef SPRINT5_PAGE_CACHE_H
 #define SPRINT5_PAGE_CACHE_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct pcache pcache_t;
 
 typedef struct {
-    uint64_t page_id;
-    void *data;       // PAGE_SIZE buffer
-    bool dirty;
-    int pins;         // pin count
+	uint64_t page_id;
+	void *data; // PAGE_SIZE buffer
+	bool dirty;
+	int pins; // pin count
 } pc_page_t;
 
 pcache_t *pc_create(size_t capacity_pages);
@@ -31,4 +31,3 @@ typedef int (*pc_flush_cb)(const pc_page_t *page, void *ctx);
 int pc_flush_dirty(pcache_t *pc, pc_flush_cb cb, void *ctx);
 
 #endif // SPRINT5_PAGE_CACHE_H
-
