@@ -1,11 +1,11 @@
 #include "siphash.h"
+#include <fcntl.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <stdint.h>
-#include <stddef.h>
 
 // Rotate left macro
 // bit view step by step:
@@ -21,13 +21,23 @@
 #define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
 // SipRound - core mixing operation
-#define SIPROUND \
-    do { \
-        v0 += v1; v1 = ROTL(v1, 13); v1 ^= v0; v0 = ROTL(v0, 32); \
-        v2 += v3; v3 = ROTL(v3, 16); v3 ^= v2; \
-        v0 += v3; v3 = ROTL(v3, 21); v3 ^= v0; \
-        v2 += v1; v1 = ROTL(v1, 17); v1 ^= v2; v2 = ROTL(v2, 32); \
-    } while(0)
+#define SIPROUND                                                               \
+	do {                                                                   \
+		v0 += v1;                                                      \
+		v1 = ROTL(v1, 13);                                             \
+		v1 ^= v0;                                                      \
+		v0 = ROTL(v0, 32);                                             \
+		v2 += v3;                                                      \
+		v3 = ROTL(v3, 16);                                             \
+		v3 ^= v2;                                                      \
+		v0 += v3;                                                      \
+		v3 = ROTL(v3, 21);                                             \
+		v3 ^= v0;                                                      \
+		v2 += v1;                                                      \
+		v1 = ROTL(v1, 17);                                             \
+		v1 ^= v2;                                                      \
+		v2 = ROTL(v2, 32);                                             \
+	} while (0)
 
 // One SipRound (toy 8-bit walkthrough; real impl is 64-bit)
 // Rotations reduced mod 8: 13→5, 16→0, 21→5, 17→1, 32→0
@@ -52,10 +62,13 @@
 // Result (toy): v0=0x40, v1=0x3B, v2=0x02, v3=0x6E
 
 // Read 64-bit little-endian
-static inline uint64_t read64le(const uint8_t *p) {
-    return (uint64_t)p[0] | ((uint64_t)p[1] << 8) | ((uint64_t)p[2] << 16) |
-           ((uint64_t)p[3] << 24) | ((uint64_t)p[4] << 32) | ((uint64_t)p[5] << 40) |
-           ((uint64_t)p[6] << 48) | ((uint64_t)p[7] << 56);
+static inline uint64_t
+read64le(const uint8_t *p)
+{
+	return (uint64_t)p[0] | ((uint64_t)p[1] << 8) | ((uint64_t)p[2] << 16)
+	       | ((uint64_t)p[3] << 24) | ((uint64_t)p[4] << 32)
+	       | ((uint64_t)p[5] << 40) | ((uint64_t)p[6] << 48)
+	       | ((uint64_t)p[7] << 56);
 }
 
 // Global keys (initialized once at startup)
@@ -64,93 +77,114 @@ static uint64_t global_k1 = 0;
 static int keys_initialized = 0;
 
 // Generate cryptographically secure random keys
-int siphash_init_random_key(uint64_t *k0, uint64_t *k1) {
-    int fd = open("/dev/urandom", O_RDONLY);
-    if (fd < 0) {
-        // Fallback to weaker randomness
-        srand((unsigned int)time(NULL) ^ getpid());
-        *k0 = ((uint64_t)rand() << 32) | rand();
-        *k1 = ((uint64_t)rand() << 32) | rand();
-        return -1; // Indicate weak randomness
-    }
-    
-    uint8_t key_bytes[16];
-    ssize_t bytes_read = read(fd, key_bytes, 16);
-    close(fd);
-    
-    if (bytes_read != 16) {
-        return -1;
-    }
-    
-    *k0 = read64le(key_bytes);
-    *k1 = read64le(key_bytes + 8);
-    return 0;
+int
+siphash_init_random_key(uint64_t *k0, uint64_t *k1)
+{
+	int fd = open("/dev/urandom", O_RDONLY);
+	if (fd < 0) {
+		// Fallback to weaker randomness
+		srand((unsigned int)time(NULL) ^ getpid());
+		*k0 = ((uint64_t)rand() << 32) | rand();
+		*k1 = ((uint64_t)rand() << 32) | rand();
+		return -1; // Indicate weak randomness
+	}
+
+	uint8_t key_bytes[16];
+	ssize_t bytes_read = read(fd, key_bytes, 16);
+	close(fd);
+
+	if (bytes_read != 16) {
+		return -1;
+	}
+
+	*k0 = read64le(key_bytes);
+	*k1 = read64le(key_bytes + 8);
+	return 0;
 }
 
 // Set global keys (call once at startup)
-void siphash_set_key(uint64_t k0, uint64_t k1) {
-    global_k0 = k0;
-    global_k1 = k1;
-    keys_initialized = 1;
+void
+siphash_set_key(uint64_t k0, uint64_t k1)
+{
+	global_k0 = k0;
+	global_k1 = k1;
+	keys_initialized = 1;
 }
 
 // Convenience function using global keys
-uint64_t siphash_with_global_key(const void *data, size_t len) {
-    if (!keys_initialized) {
-        // Auto-initialize with random keys if not set
-        uint64_t k0, k1;
-        siphash_init_random_key(&k0, &k1);
-        siphash_set_key(k0, k1);
-    }
-    return siphash(data, len, global_k0, global_k1);
+uint64_t
+siphash_with_global_key(const void *data, size_t len)
+{
+	if (!keys_initialized) {
+		// Auto-initialize with random keys if not set
+		uint64_t k0, k1;
+		siphash_init_random_key(&k0, &k1);
+		siphash_set_key(k0, k1);
+	}
+	return siphash(data, len, global_k0, global_k1);
 }
 
-uint64_t siphash(const void *data, size_t len, uint64_t k0, uint64_t k1)
+uint64_t
+siphash(const void *data, size_t len, uint64_t k0, uint64_t k1)
 {
-    const uint8_t *in = (const uint8_t *)data;
+	const uint8_t *in = (const uint8_t *)data;
 
-    // Initialize state with magic constants XORed with key
-    uint64_t v0 = 0x736f6d6570736575ULL ^ k0;
-    uint64_t v1 = 0x646f72616e646f6dULL ^ k1;
-    uint64_t v2 = 0x6c7967656e657261ULL ^ k0;
-    uint64_t v3 = 0x7465646279746573ULL ^ k1;
+	// Initialize state with magic constants XORed with key
+	uint64_t v0 = 0x736f6d6570736575ULL ^ k0;
+	uint64_t v1 = 0x646f72616e646f6dULL ^ k1;
+	uint64_t v2 = 0x6c7967656e657261ULL ^ k0;
+	uint64_t v3 = 0x7465646279746573ULL ^ k1;
 
-    // Process full 8-byte blocks
-    const uint8_t *end = in + len - (len % 8);
-    for (; in != end; in += 8) {
-        uint64_t m = read64le(in);
-        v3 ^= m;
-        SIPROUND; SIPROUND;  // 2 compression rounds
-        v0 ^= m;
-    }
+	// Process full 8-byte blocks
+	const uint8_t *end = in + len - (len % 8);
+	for (; in != end; in += 8) {
+		uint64_t m = read64le(in);
+		v3 ^= m;
+		SIPROUND;
+		SIPROUND; // 2 compression rounds
+		v0 ^= m;
+	}
 
-    // Handle remaining bytes + length
-    uint64_t b = ((uint64_t)len) << 56;
-    switch (len & 7) {
-        case 7: b |= ((uint64_t)in[6]) << 48;
-        case 6: b |= ((uint64_t)in[5]) << 40;
-        case 5: b |= ((uint64_t)in[4]) << 32;
-        case 4: b |= ((uint64_t)in[3]) << 24;
-        case 3: b |= ((uint64_t)in[2]) << 16;
-        case 2: b |= ((uint64_t)in[1]) << 8;
-        case 1: b |= ((uint64_t)in[0]);
-        case 0: break;
-    }
+	// Handle remaining bytes + length
+	uint64_t b = ((uint64_t)len) << 56;
+	switch (len & 7) {
+	case 7:
+		b |= ((uint64_t)in[6]) << 48;
+	case 6:
+		b |= ((uint64_t)in[5]) << 40;
+	case 5:
+		b |= ((uint64_t)in[4]) << 32;
+	case 4:
+		b |= ((uint64_t)in[3]) << 24;
+	case 3:
+		b |= ((uint64_t)in[2]) << 16;
+	case 2:
+		b |= ((uint64_t)in[1]) << 8;
+	case 1:
+		b |= ((uint64_t)in[0]);
+	case 0:
+		break;
+	}
 
-    v3 ^= b;
-    SIPROUND; SIPROUND;  // 2 more compression rounds
-    v0 ^= b;
+	v3 ^= b;
+	SIPROUND;
+	SIPROUND; // 2 more compression rounds
+	v0 ^= b;
 
-    // Finalization
-    v2 ^= 0xff;
-    SIPROUND; SIPROUND; SIPROUND; SIPROUND;  // 4 finalization rounds
+	// Finalization
+	v2 ^= 0xff;
+	SIPROUND;
+	SIPROUND;
+	SIPROUND;
+	SIPROUND; // 4 finalization rounds
 
-    return v0 ^ v1 ^ v2 ^ v3;
+	return v0 ^ v1 ^ v2 ^ v3;
 }
 
-uint64_t siphash_key(const void *data, size_t len, const uint8_t key[16])
+uint64_t
+siphash_key(const void *data, size_t len, const uint8_t key[16])
 {
-    uint64_t k0 = read64le(key);
-    uint64_t k1 = read64le(key + 8);
-    return siphash(data, len, k0, k1);
+	uint64_t k0 = read64le(key);
+	uint64_t k1 = read64le(key + 8);
+	return siphash(data, len, k0, k1);
 }

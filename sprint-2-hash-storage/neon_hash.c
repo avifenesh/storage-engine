@@ -29,4 +29,5 @@ neon_key_compare(const void *key1, size_t key1_len, const void *key2,
 	return (key1_len < key2_len) ? -1 : (key1_len > key2_len) ? 1 : 0;
 }
 
-// TODO: Add NEON-optimized version of key_compare if possible for batch comparisons
+// TODO: Add NEON-optimized version of key_compare if possible for batch
+// comparisons
