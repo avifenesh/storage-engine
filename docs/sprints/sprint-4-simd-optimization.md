@@ -1,26 +1,26 @@
-# Sprint 4: SIMD Text Optimization
+# Sprint 4: SIMD Optimization for Storage Engines
 
 ## Overview
-Optimize text processing operations using ARM NEON SIMD instructions. Learn to identify performance bottlenecks and apply vectorization techniques for significant speedups.
+Optimize hot paths in your storage engines using ARM NEON SIMD instructions. Learn to identify bottlenecks (hashing, key compare, memory moves) and apply vectorization for measurable speedups.
 
 **Duration**: 2-3 weeks  
-**Prerequisites**: Completed Sprint 3 (kernel character device)
+**Prerequisites**: Completed Sprint 3 (B+ tree and kernel device)
 
 ---
 
 ## 🎯 Learning Objectives
 
-1. **Master ARM NEON intrinsics** - Use SIMD instructions for text processing
-2. **Optimize string operations** - Vectorize comparison, search, and hashing
+1. **Master ARM NEON intrinsics** - Use SIMD instructions for data movement and comparison
+2. **Optimize storage hot paths** - Vectorize key compare, hashing, and memory copy within nodes/tables
 3. **Profile and measure** - Identify hot paths and quantify improvements
-4. **Compare implementations** - Benchmark scalar vs SIMD vs kernel
-5. **Understand CPU architecture** - Cache effects and instruction pipelining
+4. **Compare implementations** - Benchmark scalar vs SIMD with A/B tests
+5. **Understand CPU architecture** - Alignment, cache effects, and instruction pipelining
 
 ---
 
 ## 📋 Sprint Issues
 
-### Issue #35: ARM NEON String Comparison Optimization
+### Issue #35: ARM NEON Key/Byte Operations
 **File**: `sprint-4-simd-optimization/neon_string_ops.c`
 
 **Requirements**:
@@ -34,7 +34,7 @@ Optimize text processing operations using ARM NEON SIMD instructions. Learn to i
 #include <arm_neon.h>
 #include <string.h>
 
-// SIMD string comparison
+// SIMD string/byte comparison for keys
 int neon_strcmp(const char *s1, const char *s2) {
     // Handle unaligned start
     while (((uintptr_t)s1 & 15) && *s1 && (*s1 == *s2)) {
@@ -70,7 +70,7 @@ int neon_strcmp(const char *s1, const char *s2) {
     return *s1 - *s2;
 }
 
-// SIMD lowercase conversion
+// Example: SIMD lowercase conversion (optional exercise)
 void neon_to_lower(char *str, size_t len) {
     const uint8x16_t A = vdupq_n_u8('A');
     const uint8x16_t Z = vdupq_n_u8('Z');
@@ -102,7 +102,7 @@ void neon_to_lower(char *str, size_t len) {
     }
 }
 
-// SIMD whitespace detection
+// Example: SIMD byte class detection
 size_t neon_find_whitespace(const char *str, size_t len) {
     const uint8x16_t space = vdupq_n_u8(' ');
     const uint8x16_t tab = vdupq_n_u8('\t');
@@ -193,7 +193,7 @@ size_t neon_tokenize(const char *text, size_t len, token_t *tokens,
 
 ---
 
-### Issue #36: SIMD Hash Computation for Term Processing
+### Issue #36: SIMD Hash Computation for Keys
 **File**: `sprint-4-simd-optimization/neon_hash.c`
 
 **Requirements**:
@@ -334,7 +334,7 @@ void test_hash_distribution(hash_func_t hash_func, const char *name) {
 
 ---
 
-### Issue #37: Performance Benchmarking - User-space vs Kernel
+### Issue #37: Performance Benchmarking (Scalar vs NEON)
 **File**: `sprint-4-simd-optimization/benchmarks.c`
 
 **Requirements**:
@@ -444,54 +444,7 @@ void bench_tokenize_neon(void *data) {
     neon_tokenize(td->text, td->len, td->tokens, td->max_tokens);
 }
 
-// Kernel vs userspace comparison
-void bench_kernel_vs_userspace(void) {
-    int fd = open("/dev/textsearch", O_RDWR);
-    if (fd < 0) {
-        perror("open /dev/textsearch");
-        return;
-    }
-    
-    // Prepare test data
-    const char *doc = "Sample document for kernel benchmark testing";
-    struct textsearch_add_doc add_doc = {
-        .doc_id = 1,
-        .content = (char *)doc,
-        .length = strlen(doc)
-    };
-    
-    // Benchmark kernel IOCTL
-    benchmark_t bench = {.name = "Kernel IOCTL"};
-    bench_start(&bench);
-    
-    for (int i = 0; i < 1000; i++) {
-        add_doc.doc_id = i;
-        ioctl(fd, TEXTSEARCH_ADD_DOC, &add_doc);
-    }
-    
-    double kernel_time = bench_end(&bench);
-    
-    // Benchmark userspace
-    inverted_index_t *index = create_index(10000);
-    bench_start(&bench);
-    
-    for (int i = 0; i < 1000; i++) {
-        token_list_t *tokens = tokenize_text(doc, strlen(doc));
-        add_document(index, i, tokens);
-        free_token_list(tokens);
-    }
-    
-    double userspace_time = bench_end(&bench);
-    
-    printf("\nKernel vs Userspace:\n");
-    printf("Kernel:    %.3f ms\n", kernel_time);
-    printf("Userspace: %.3f ms\n", userspace_time);
-    printf("Overhead:  %.1f%%\n", 
-           ((kernel_time - userspace_time) / userspace_time) * 100);
-    
-    free_index(index);
-    close(fd);
-}
+// A/B benchmarks target your storage codepaths, not generic text engines
 ```
 
 **Performance Report Generation**:
@@ -534,59 +487,42 @@ void generate_performance_report(const char *filename) {
 
 ## 🛠️ Implementation Guide
 
-### Week 1-2: LSM Tree Implementation
-1. Design LSM tree architecture
-2. Implement memtable with write-ahead log
-3. Build SSTable format with bloom filters
-4. Create compaction strategies
-5. Add concurrent access controls
+### Week 1: Identify Hot Paths
+1. Add timing around hash functions, key compare, and node moves
+2. Build minimal microbenchmarks for these paths
+3. Freeze inputs and measure baseline variance
 
-### Week 3: SIMD Optimization
-1. Optimize bloom filter operations with NEON
-2. Vectorize key comparison functions
-3. Accelerate merge operations
-4. Implement SIMD compression
-5. Measure performance improvements
+### Week 2: Implement NEON Variants
+1. Write NEON versions for hashing and key compare
+2. Add alignment handling and tail processing
+3. Gate usage behind runtime checks and `#ifdef __aarch64__`
 
-### Week 4: Performance Analysis
-1. Create comprehensive benchmark suite
-2. Compare LSM vs B+ tree characteristics
-3. Measure amplification factors
-4. Generate performance reports
-5. Document optimization techniques
+### Week 3: Integrate and Validate
+1. Switch hot paths to NEON where available
+2. Validate correctness with randomized tests
+3. Add fallback to scalar implementation
+
+### Week 4: Benchmark and Document
+1. Produce A/B data with clear speedups
+2. Investigate cache alignment and prefetch
+3. Generate a concise performance report with recommendations
 
 ---
 
 ## 📊 Testing Strategy
 
-### LSM Tree Testing
-```bash
-# Run unit tests
-make test-lsm
-
-# Test durability and recovery
-./test_crash_recovery --iterations=10000
-
-# Test concurrent operations
-./test_concurrent_access --threads=8
-
-# Verify compaction correctness
-./test_compaction --sstables=10
-```
-
 ### Performance Testing
 ```bash
-# Run storage benchmarks
-./storage_benchmark --workload=write_heavy --duration=300
-./storage_benchmark --workload=read_heavy --duration=300
-./storage_benchmark --workload=mixed --duration=300
+# Run your microbenchmarks (or instrument Sprint 2/3 harnesses)
+# Example: ./your_hash_bench --keys=100000 --trials=5
+# Example: ./your_btree_bench --n=500000 --iterations=3
 
 # Profile with perf
 perf record -g ./storage_benchmark
 perf report
 
-# Check SIMD optimization usage
-objdump -d neon_lsm_ops.o | grep -A20 neon_bloom_hash
+# Check SIMD optimization usage (replace with your object and symbol)
+objdump -d your_object.o | grep -A20 your_neon_symbol
 ```
 
 ---
@@ -606,12 +542,6 @@ objdump -d neon_lsm_ops.o | grep -A20 neon_bloom_hash
 
 ## 📚 Resources
 
-### LSM Tree Resources
-- [LSM Tree Paper](https://www.cs.umb.edu/~poneil/lsmtree.pdf) - Original research paper
-- [LSM in a Week](https://skyzh.github.io/mini-lsm/) - Comprehensive tutorial
-- [RocksDB Architecture](https://github.com/facebook/rocksdb/wiki/Architecture-Guide) - Production LSM implementation
-- [Building LSM from Scratch](https://dev.to/justlorain/building-an-lsm-tree-storage-engine-from-scratch-3eom) - Practical guide
-
 ### SIMD Optimization
 - [ARM NEON Programmer's Guide](https://developer.arm.com/documentation/102474/latest/)
 - [NEON Intrinsics Reference](https://developer.arm.com/architectures/instruction-sets/intrinsics/)
@@ -623,12 +553,57 @@ objdump -d neon_lsm_ops.o | grep -A20 neon_bloom_hash
 
 By the end of Sprint 4, you should have:
 
-1. **Complete LSM tree storage engine** with durability guarantees
-2. **SIMD-optimized operations** for bloom filters and key comparison
-3. **Efficient compaction strategy** maintaining performance
-4. **Comprehensive benchmarks** comparing LSM vs B+ tree
-5. **Performance analysis** with amplification measurements
-6. **Production-ready storage system** with concurrent access
+1. **NEON-optimized hashing and key compare** integrated behind safe fallbacks
+2. **Microbenchmarks** demonstrating clear speedups over scalar versions
+3. **Alignment-aware implementations** with tail handling
+4. **Performance report** with guidance on when SIMD helps/hurts
+
+---
+
+## 🔒 Study Guidance
+
+- Provided:
+  - Microbenchmarks and placeholders to compare scalar vs NEON
+  - Build targets that compile your code and run tests
+- You implement:
+  - Actual NEON code paths and safe fallbacks
+  - Correctness tests showing NEON == scalar results
+  - A/B measurements and short write‑up
+
+We do not include NEON solutions; the challenge is to design and validate them yourself.
+
+---
+
+## 🚀 Expert Track (Optional, Fast Path)
+
+- Implement NEON memcmp/strcasecmp variants; CRC32 via ARM crypto ext when available.
+- Runtime CPU feature detection; function pointer dispatch; zero observable diff vs scalar.
+- Microarchitectural: alignment strategies, prefetch distance, unrolling tradeoffs.
+- QA: property tests (scalar == NEON), randomized byte data, perf flamegraph deltas.
+
+---
+
+## 📏 Quality Gates & Targets
+
+- Correctness
+  - Property tests: 1M random inputs (sizes 1–4KB) NEON == scalar results
+  - Edge cases: unaligned starts, short tails (1–15 bytes), zero-length
+- Speedups (ARM64 with NEON)
+  - String/byte compare: ≥ 3x on aligned ≥64B buffers; ≥ 1.5x on unaligned
+  - Hash: ≥ 2–3x for 16–64B keys with CRC32/NEON lanes
+  - Memory moves in nodes: ≥ 1.5x for batched key slot shifts
+- Engineering
+  - Runtime dispatch based on CPU features; scalar fallbacks always present
+  - Assembly spot-check shows vectorized loops; flamegraph shows reduced hot-path share
+
+---
+
+## 🧪 Measurement Checklist
+
+- Verify assembly: `make asm-learn` and inspect your NEON versions
+- Run microbenchmarks (your harness) and capture scalar vs NEON timings; compute speedups
+- Property tests: run randomized inputs ensuring NEON == scalar; record test volume
+- Fill `metrics.json.sprint4_simd` speedups and correctness fields
 
 ---
 

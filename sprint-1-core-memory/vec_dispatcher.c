@@ -95,9 +95,15 @@ main(void)
 	printf("🎯 Function Pointer Dispatcher Demo - Issue #5\n");
 	printf("===============================================\n\n");
 
+	/* Declarations moved before statements for C90 compliance */
+	float32_t a, b, result_f32;
+	aligned_vec_t vec_a, vec_b, result_vec;
+	float32_t dot_result;
+	float32_t expected;
+
 	/* Test 1: Float32 operations */
 	printf("🔢 Testing float32 operations:\n");
-	float32_t a = 3.5f, b = 2.0f, result_f32;
+	a = 3.5f; b = 2.0f; /* result_f32 assigned by operations */
 
 	printf("  Input: a=%.2f, b=%.2f\n", a, b);
 
@@ -115,10 +121,8 @@ main(void)
 
 	/* Test 2: Vector4 operations */
 	printf("\n🔢 Testing vector4 SIMD operations:\n");
-	aligned_vec_t vec_a = { 1.0f, 2.0f, 3.0f, 4.0f };
-	aligned_vec_t vec_b = { 2.0f, 3.0f, 1.0f, 2.0f };
-	aligned_vec_t result_vec;
-	float32_t dot_result;
+	vec_a = (aligned_vec_t){ 1.0f, 2.0f, 3.0f, 4.0f };
+	vec_b = (aligned_vec_t){ 2.0f, 3.0f, 1.0f, 2.0f };
 
 	printf("  Vector A: [%.1f, %.1f, %.1f, %.1f]\n", vec_a.x, vec_a.y,
 	       vec_a.z, vec_a.w);
@@ -141,8 +145,8 @@ main(void)
 
 		/* Verify dot product manually: (1*2 + 2*3 + 3*1 + 4*2) =
 		 * 2+6+3+8 = 19 */
-		float32_t expected = vec_a.x * vec_b.x + vec_a.y * vec_b.y
-				     + vec_a.z * vec_b.z + vec_a.w * vec_b.w;
+		expected = vec_a.x * vec_b.x + vec_a.y * vec_b.y
+			     + vec_a.z * vec_b.z + vec_a.w * vec_b.w;
 		printf("  🔍 Manual verification: %.1f (should match)\n",
 		       expected);
 	}

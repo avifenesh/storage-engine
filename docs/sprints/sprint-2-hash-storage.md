@@ -16,15 +16,17 @@ Build a high-performance kernel-space hash table storage engine with ARM NEON op
 4. **Design storage operations** - Efficient put/get/delete with memory management
 5. **Handle concurrency** - Thread-safe operations with proper locking
 
+Tip: Start with a simple, correct userspace implementation, then port to kernel space. Add SIMD and concurrency last.
+
 ---
 
 ## 📋 Sprint Issues
 
-### Issue #27: Implement Kernel Hash Table with Collision Resolution
+### Issue #27: Implement Hash Table with Collision Resolution (Prototype ➜ Kernel)
 **File**: `sprint-2-hash-storage/hash_engine.c`
 
 **Requirements**:
-- Hash table with chaining collision resolution
+- Implement either linear probing or chaining (pick one to start)
 - Dynamic resizing at 75% load factor
 - Atomic counters for statistics
 - Proper memory management with kmalloc/kfree
@@ -47,7 +49,7 @@ struct hash_entry {
     struct hash_entry *next;
 };
 
-// Core operations
+// Core operations (userspace first, then gate kernel-only code under __KERNEL__)
 int hash_put(const void *key, size_t key_len, const void *value, size_t value_len);
 int hash_get(const void *key, size_t key_len, void **value, size_t *value_len);
 int hash_delete(const void *key, size_t key_len);
@@ -59,6 +61,12 @@ int hash_get_stats(uint32_t *item_count, uint32_t *bucket_count, uint32_t *memor
 - O(1) average lookup time
 - Memory usage <150% of raw data size
 - Collision rate <10% with good hash function
+
+Lab Steps:
+- Step 1: Implement a userspace hash table with linear probing (no locks). Add simple tests in `sprint-2-hash-storage/tests/hash_tests.c`.
+- Step 2: Add resizing and verify load factor thresholds by printing stats every 1,000 inserts.
+- Step 3: Add pthread-based concurrent put/get tests; observe race conditions; then add fine-grained bucket locks or a global lock.
+- Step 4: Port to kernel by replacing malloc/free with kmalloc/kfree and using spinlocks/atomics. Keep the userspace version intact for benchmarking.
 
 ---
 
@@ -99,6 +107,9 @@ struct hash_stats {
 - Proper user space pointer validation
 - Clean module load/unload
 
+Checkpoint Demo:
+- Write a tiny userspace program that opens `/dev/storage-hash` and performs PUT/GET/DELETE using your IOCTLs. Print results and error codes.
+
 ---
 
 ### Issue #29: ARM NEON Hash Function Optimization
@@ -133,6 +144,10 @@ uint32_t neon_hash_distribution_test(const void **keys, size_t *key_lens,
 - Good distribution with low collision rate
 - Handles variable-length keys correctly
 - Performance scales with ARM NEON capabilities
+
+Study Targets:
+- Inspect compiler-generated assembly with `make asm-learn` and compare scalar vs NEON versions.
+- Align hot buffers to 16 bytes; measure impact.
 
 ---
 
@@ -197,6 +212,67 @@ int test_concurrent_operations(void);
 3. Test concurrent access patterns
 4. Fix bugs and optimize performance
 5. Document API and usage
+
+Learning Checklist:
+- Can explain trade-offs of linear probing vs chaining
+- Can show atomics and locking used correctly in kernel code
+- Can demonstrate measurable speedups from NEON
+
+---
+
+## 🔒 What’s Provided vs What You Build
+
+- Provided (scaffolding only):
+  - Minimal userspace stubs in `sprint-2-hash-storage/` (no working hash logic)
+  - Placeholder test harness file in `tests/` with TODOs
+  - Make targets to build/run your tests
+- You Build (for learning):
+  - Hash table algorithm (probing/chaining), resizing, and stats
+  - Correctness under concurrency (locking/atomics)
+  - Kernel character device and IOCTL handlers
+  - NEON optimizations and measurable benchmarks
+
+No solutions are provided; only QA scaffolding to validate your own implementation.
+
+---
+
+## 🚀 Expert Track (Optional, Fast Path)
+
+- Probing: Robin Hood hashing with tombstones; bounded probe length histograms.
+- Resizing: incremental, lock‑striped or RCU‑based without stop‑the‑world.
+- Concurrency: per‑bucket spinlocks or lock striping; try read‑mostly lock‑free gets.
+- Hashing: feature‑gated CRC32/NEON with runtime dispatch; alignment + tail handling.
+- QA: property tests vs an oracle map; contention profiling; p50/p99 under 8 threads.
+
+---
+
+## 📏 Quality Gates & Targets
+
+Use these as measurable finish lines for this sprint. Adjust for your hardware, but keep the ratios.
+
+- Correctness
+  - Property tests: 100k random ops (mix of put/get/delete) match oracle map
+  - Concurrency: 8 threads, 1M total ops without corruption or deadlocks
+  - Load factor stays within [0.2, 0.75] with automatic resize
+- Hash quality
+  - Uniform random keys: bucket occupancy stddev < 15% of mean
+  - Probe length (open addressing): p99 ≤ 8, max ≤ 32
+  - Collision rate (chaining): average chain length ≤ 1.5 at 0.75 load factor
+- Performance (Raspberry Pi 4/5 baseline; scale relatively on other HW)
+  - Reads: ≥ 10k ops/s single-thread; ≥ 50k ops/s at 8 threads
+  - Writes: ≥ 3k ops/s single-thread; ≥ 15k ops/s at 8 threads
+  - NEON/CRC32 path: ≥ 2.5x speedup vs scalar hashing on ≥16B keys
+- Memory
+  - Overhead ≤ 150% of raw KV footprint at 0.6–0.75 load factor
+
+---
+
+## 🧪 Measurement Checklist
+
+- Build/run expert harness: `make test-expert` (runs `build/hash_prop`)
+- Throughput: add a simple timed loop in your hash tests; record read/write ops/s (1 thread, then 8 threads)
+- Hash quality: export bucket occupancy/probe length stats; fill `metrics.json` fields under `sprint2_hash`
+- Record environment: CPU model, core count, kernel version in a comment near the metrics
 
 ---
 

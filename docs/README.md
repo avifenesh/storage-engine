@@ -20,10 +20,11 @@ This is a **focused learning project** for C systems programming, building a ker
 
 ### Sprint Documentation
 - **[sprint-1-c-fundamentals.md](sprints/sprint-1-c-fundamentals.md)** ✅ COMPLETED
-- **[sprint-2-text-processing.md](sprints/sprint-2-text-processing.md)** - Text processing foundations
-- **[sprint-3-kernel-device.md](sprints/sprint-3-kernel-device.md)** - Kernel character device
-- **[sprint-4-simd-optimization.md](sprints/sprint-4-simd-optimization.md)** - SIMD text optimization
-- **[sprint-5-production-features.md](sprints/sprint-5-production-features.md)** - Production features
+- Storage Engine Track (low-level DB + kernel):
+  - **[sprint-2-hash-storage.md](sprints/sprint-2-hash-storage.md)** - Hash table storage engine
+  - **[sprint-3-btree-storage.md](sprints/sprint-3-btree-storage.md)** - B+ tree with range queries
+  - **[sprint-4-simd-optimization.md](sprints/sprint-4-simd-optimization.md)** - SIMD optimization for storage
+  - **[sprint-5-production-features.md](sprints/sprint-5-production-features.md)** - Durability (WAL) and on-disk layout
 
 ### Additional Resources
 - **[MAKEFILE_USAGE_GUIDE.md](MAKEFILE_USAGE_GUIDE.md)** - Build system documentation

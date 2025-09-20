@@ -1,7 +1,7 @@
 # Sprint 3: B+ Tree Storage Engine
 
 ## Overview
-Build a kernel-space B+ tree storage engine for sorted data storage and range queries. Create `/dev/storage-btree` character device with optimized tree operations and ARM NEON key comparison.
+Build a kernel-space B+ tree storage engine for sorted data and range queries. Start with a userspace prototype, then port to kernel. Create `/dev/storage-btree` character device with optimized tree operations and ARM NEON key comparison.
 
 **Duration**: 5 weeks  
 **Prerequisites**: Completed Sprint 2 (hash table storage engine)
@@ -16,11 +16,13 @@ Build a kernel-space B+ tree storage engine for sorted data storage and range qu
 4. **Handle complex operations** - Node splitting, merging, and rebalancing
 5. **Implement range queries** - Efficient sequential access patterns
 
+Approach: Prototype nodes and operations in userspace with malloc and unit tests. Once correct and profiled, move to kernel interfaces and locks.
+
 ---
 
 ## 📋 Sprint Issues
 
-### Issue #31: Implement Core B+ Tree Data Structure in Kernel
+### Issue #31: Implement Core B+ Tree (Prototype ➜ Kernel)
 **File**: `sprint-3-btree-storage/btree_engine.c`
 
 **Requirements**:
@@ -74,7 +76,7 @@ struct btree_engine {
     struct kmem_cache *key_cache;
 };
 
-// Core operations
+// Core operations (prototype first)
 int btree_insert(struct btree_engine *tree, const void *key, size_t key_len,
                 const void *value, size_t value_len);
 int btree_search(struct btree_engine *tree, const void *key, size_t key_len,
@@ -105,7 +107,11 @@ int btree_insert_key_in_node(struct btree_node *node, const void *key, size_t ke
 int btree_remove_key_from_node(struct btree_node *node, int position);
 ```
 
-**Success Criteria**:
+Prototype Milestones:
+- Insert/search/delete pass unit tests with random keys
+- Validate invariants after each operation (sorted keys, min/max fill, height consistency)
+
+Kernel Milestones:
 - O(log n) search, insert, delete operations
 - Maintains B+ tree invariants (balanced, sorted)
 - Efficient memory usage with node caching
@@ -214,6 +220,9 @@ cleanup:
 - Range queries handle large result sets efficiently
 - Iterator interface supports streaming large datasets
 - Proper error handling and resource cleanup
+
+Checkpoint Demo:
+- Userspace tool that inserts 1M sequential keys and runs range queries. Compare wall-clock time before/after NEON compare.
 
 ---
 
@@ -660,13 +669,13 @@ void compare_storage_engines(void) {
 
 ## 🛠️ Implementation Guide
 
-### Week 1: Core B+ Tree Structure
+### Week 1: Core B+ Tree Structure (Userspace)
 1. Design B+ tree node layout
 2. Implement basic tree operations
 3. Add node splitting and merging
 4. Test with single-threaded operations
 
-### Week 2: Character Device Interface
+### Week 2: Character Device Interface (Kernel)
 1. Create kernel module with B+ tree integration
 2. Implement IOCTL command handlers
 3. Add proper error handling and validation
@@ -734,13 +743,63 @@ By the end of Sprint 3, you should have:
 
 ## 🚀 Next Sprint Preview
 
-Sprint 4 will build an LSM tree storage engine:
-- Create `/dev/storage-lsm` for write-optimized storage
-- Implement memtable, SSTable levels, and compaction
-- Add background kernel threads for level management
-- Compare write vs read optimization trade-offs
+Sprint 4 will focus on SIMD optimization across your storage code:
+- Apply NEON to hashing and key comparisons
+- Measure cache effects and alignment
+- Build microbenchmarks and visualize speedups
 
-The ordered nature of your B+ tree will help understand LSM tree merge operations!
+---
+
+## 🔒 What’s Provided vs What You Build
+
+- Provided (scaffolding only):
+  - Minimal userspace stubs for engine/NEON compare/benchmarks (no working B+ tree)
+  - Benchmark skeleton to measure your implementation
+  - Build targets to compile and run your code
+- You Build (for learning):
+  - Full B+ tree logic: insert/search/delete, split/merge, invariants
+  - Range queries, iterators, and concurrency controls
+  - Kernel device API and error handling
+  - NEON optimizations and A/B measured results
+
+No solutions are provided; only enough structure to validate your work.
+
+---
+
+## 🚀 Expert Track (Optional, Fast Path)
+
+- Node layout: 4KB pages, cache‑line aware key slots, copy‑on‑write splits.
+- Concurrency: latch coupling; RCU readers or rwlocks; iterator correctness under updates.
+- Variants: B‑link trees for concurrent splits/merges across siblings.
+- SIMD: NEON compare + batched binary search; prefetch and clustered moves.
+- QA: invariant checks after ops, randomized workloads vs oracle, p50/p99 range SLA.
+
+---
+
+## 📏 Quality Gates & Targets
+
+- Invariants
+  - Tree properties always hold after every op: keys sorted; node keys within [min,max] fill; consistent height across leaves; leaf linkage correct
+  - Validation tool walks entire tree and reports 0 errors
+- Performance (Pi 4/5 indicative)
+  - Search: ≤ 2x hash table latency for point lookups at similar data size
+  - Insert: maintains O(log n); throughput degrades gracefully as n grows 10x
+  - Range query: 1k sequential keys in ≤ 10 ms (p99 ≤ 15 ms)
+- Node efficiency
+  - Average leaf fill ≥ 60%; internal node fill ≥ 50%
+  - Node size fits 4KB page; copy-on-split moves ≤ 1 page per split path
+- Concurrency
+  - Readers scale with RCU/rwlock: +3–4x throughput from 1→8 threads on read-heavy
+  - No starvation or deadlock under mixed read/write workloads
+
+---
+
+## 🧪 Measurement Checklist
+
+- Build/run expert harness: `make test-expert` (runs `build/btree_prop`)
+- Range SLA: add a timed range query loop; record p50/p99 for 1k results
+- Invariants: add a full-tree validator, run after randomized ops and record 0 errors
+- Fill `metrics.json.sprint3_btree` (range latencies, node fills, read scaling)
 
 ---
 
