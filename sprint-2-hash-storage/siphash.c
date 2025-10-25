@@ -62,6 +62,7 @@
 // Result (toy): v0=0x40, v1=0x3B, v2=0x02, v3=0x6E
 
 // Read 64-bit little-endian
+
 /**
  * @brief Assemble a 64-bit unsigned integer from 8 bytes in little-endian
  * order.
