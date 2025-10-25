@@ -4,7 +4,8 @@
  * Overview:
  * - Provides a minimal key/value hash storage with fixed-size bucket array.
  * - Uses SipHash-derived 64-bit hash to map (key, key_len) to a bucket index.
- * - This userspace stub stores raw pointers without copying; callers own memory.
+ * - This userspace stub stores raw pointers without copying; callers own
+ * memory.
  *
  * Thread-safety:
  * - The engine uses a single pthread_mutex to serialize mutations and reads of

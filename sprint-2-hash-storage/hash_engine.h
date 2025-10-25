@@ -4,8 +4,10 @@
  *
  * Overview:
  * - Fixed-size array of buckets storing raw key/value pointers (caller-owned).
- * - Hashing is provided by hash_engine_hash() (SipHash-based in implementation).
- * - Optional chaining via hash_bucket::next (implementation may or may not use it).
+ * - Hashing is provided by hash_engine_hash() (SipHash-based in
+ * implementation).
+ * - Optional chaining via hash_bucket::next (implementation may or may not use
+ * it).
  *
  * Thread-safety:
  * - Functions are intended to be safe for concurrent use on the same engine
@@ -16,7 +18,8 @@
  *   stored. Callers must keep the memory valid until deletion or overwrite.
  *
  * Error handling:
- * - Functions generally return 0 on success, negative values on failure where applicable.
+ * - Functions generally return 0 on success, negative values on failure where
+ * applicable.
  */
 
 #ifndef HASH_ENGINE_H
@@ -202,7 +205,8 @@ int hash_engine_destroy(struct hash_engine *engine);
  * @param memory_usage  Out pointer for approximate total bytes (nullable).
  * @return 0 on success.
  *
- * @thread_safety Safe to call concurrently; values reflect a point-in-time snapshot.
+ * @thread_safety Safe to call concurrently; values reflect a point-in-time
+ * snapshot.
  */
 int hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
 			  uint32_t *bucket_count, uint32_t *memory_usage);
