@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "*.toml": "toml",
-        "float.h": "c"
-    }
-}
