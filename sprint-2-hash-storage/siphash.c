@@ -62,6 +62,26 @@
 // Result (toy): v0=0x40, v1=0x3B, v2=0x02, v3=0x6E
 
 // Read 64-bit little-endian
+/**
+ * @brief Assemble a 64-bit unsigned integer from 8 bytes in little-endian
+ * order.
+ *
+ * Constructs a uint64_t by combining bytes p[0]..p[7] where p[0] is the least
+ * significant byte and p[7] is the most significant byte.
+ *
+ * Preconditions:
+ * - p must be non-NULL and point to at least 8 readable bytes.
+ *
+ * Notes:
+ * - Endianness-agnostic: produces the same value on little- or big-endian
+ * hosts.
+ * - Alignment-safe: loads occur byte-by-byte (no strict-aliasing or alignment
+ * requirements).
+ * - No bounds or NULL checks are performed.
+ *
+ * @param p Pointer to the first of 8 bytes in little-endian order.
+ * @return The 64-bit unsigned value represented by the 8 bytes.
+ */
 static inline uint64_t
 read64le(const uint8_t *p)
 {

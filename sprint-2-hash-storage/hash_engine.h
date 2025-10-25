@@ -1,3 +1,24 @@
+/**
+ * @file hash_engine.h
+ * @brief Public API for a minimal key/value hash storage engine.
+ *
+ * Overview:
+ * - Fixed-size array of buckets storing raw key/value pointers (caller-owned).
+ * - Hashing is provided by hash_engine_hash() (SipHash-based in implementation).
+ * - Optional chaining via hash_bucket::next (implementation may or may not use it).
+ *
+ * Thread-safety:
+ * - Functions are intended to be safe for concurrent use on the same engine
+ *   instance through internal locking, unless otherwise noted.
+ *
+ * Ownership and lifetime:
+ * - Keys and values are not copied by this API; only pointers and lengths are
+ *   stored. Callers must keep the memory valid until deletion or overwrite.
+ *
+ * Error handling:
+ * - Functions generally return 0 on success, negative values on failure where applicable.
+ */
+
 #ifndef HASH_ENGINE_H
 #define HASH_ENGINE_H
 
@@ -5,14 +26,50 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * Load factor thresholds used by resize policies (if implemented).
+ *
+ * @def MAX_LOAD_FACTOR
+ *      Upper threshold that may trigger an expansion when item density is high.
+ * @def MIN_LOAD_FACTOR
+ *      Lower threshold that may trigger a contraction when sparsity is high.
+ */
 #define MAX_LOAD_FACTOR 0.7
 #define MIN_LOAD_FACTOR 0.2
-// Default, initial, max, and min bucket counts
+
+/**
+ * Default and bounds for bucket array sizing.
+ *
+ * @def DEFAULT_BUCKET_COUNT
+ *      Recommended default number of buckets when omitted by callers.
+ * @def INITIAL_BUCKET_COUNT
+ *      Minimal viable starting size used by some constructors.
+ * @def MAX_BUCKET_COUNT
+ *      Hard upper bound to prevent excessive allocation.
+ * @def MIN_BUCKET_COUNT
+ *      Hard lower bound to maintain basic functionality.
+ */
 #define DEFAULT_BUCKET_COUNT 1024
 #define INITIAL_BUCKET_COUNT 16
 #define MAX_BUCKET_COUNT 1048576
 #define MIN_BUCKET_COUNT 16
 
+/**
+ * @struct hash_bucket
+ * @brief Node representing a single key/value entry in a bucket chain.
+ *
+ * @var hash_bucket::key
+ *      Pointer to caller-owned key bytes (not copied).
+ * @var hash_bucket::key_len
+ *      Length of the key in bytes.
+ * @var hash_bucket::value
+ *      Pointer to caller-owned value bytes (not copied).
+ * @var hash_bucket::value_len
+ *      Length of the value in bytes.
+ * @var hash_bucket::next
+ *      Next node in the chain for this bucket (NULL if end). May be unused by
+ *      some implementations.
+ */
 struct hash_bucket {
 	const void *key;
 	size_t key_len;
@@ -21,6 +78,21 @@ struct hash_bucket {
 	struct hash_bucket *next;
 };
 
+/**
+ * @struct hash_engine
+ * @brief Hash engine instance and its shared state.
+ *
+ * @var hash_engine::hash_buckets
+ *      Pointer to the bucket array storage.
+ * @var hash_engine::bucket_count
+ *      Current number of buckets.
+ * @var hash_engine::engine_lock
+ *      Mutex guarding shared state for thread-safety.
+ * @var hash_engine::item_count
+ *      Approximate number of stored items.
+ * @var hash_engine::total_memory
+ *      Approximate sum of key and value lengths stored.
+ */
 struct hash_engine {
 	struct hash_bucket *hash_buckets;
 	int bucket_count;
@@ -29,23 +101,109 @@ struct hash_engine {
 	int total_memory;
 };
 
+/**
+ * @brief Initialize a hash_engine with the specified bucket count.
+ *
+ * @param engine        Pointer to an allocated engine struct to initialize.
+ * @param bucket_count  Number of buckets to allocate.
+ * @return 0 on success; -1 on allocation or mutex initialization failure.
+ *
+ * @thread_safety Not thread-safe with concurrent use of the same engine
+ *                before initialization completes.
+ */
 int hash_engine_init(struct hash_engine *engine, int bucket_count);
 
+/**
+ * @brief Compute a bucket index for a given key.
+ *
+ * @param engine   Target engine (may provide hashing seed/context).
+ * @param key      Pointer to key bytes.
+ * @param key_len  Length of key in bytes.
+ * @return Non-negative bucket index in the range [0, engine->bucket_count).
+ *
+ * @note Does not validate input pointers. Safe to call concurrently.
+ */
 int hash_engine_hash(struct hash_engine *engine, const void *key,
 		     size_t key_len);
 
+/**
+ * @brief Resize the engine to a new bucket count, rehashing all entries.
+ *
+ * @param engine           Target engine.
+ * @param new_bucket_count Desired new number of buckets.
+ * @return 0 on success; negative on failure (no change on failure).
+ *
+ * @thread_safety Uses internal locking; not re-entrant on the same engine.
+ * @warning May be O(n) due to rehashing and memory allocations.
+ */
 int hash_engine_resize(struct hash_engine *engine, int new_bucket_count);
 
+/**
+ * @brief Insert or overwrite a key/value pair.
+ *
+ * @param engine     Target engine.
+ * @param key        Pointer to key bytes (caller-owned).
+ * @param key_len    Length of key in bytes.
+ * @param value      Pointer to value bytes (caller-owned).
+ * @param value_len  Length of value in bytes.
+ * @return 0 on success; negative on failure (if any).
+ *
+ * @note No deep copies are performed; caller must manage memory lifetimes.
+ * @warning Collision handling depends on implementation; entries may be
+ *          overwritten if collisions are not resolved.
+ */
 int hash_put(struct hash_engine *engine, const void *key, size_t key_len,
 	     const void *value, size_t value_len);
 
+/**
+ * @brief Retrieve a stored value for a key.
+ *
+ * @param engine     Target engine.
+ * @param key        Pointer to key bytes.
+ * @param key_len    Length of key in bytes.
+ * @param value      Out pointer receiving stored value pointer (not copied).
+ * @param value_len  Out pointer receiving stored value length.
+ * @return 0 on success; negative if not found (implementation-defined).
+ *
+ * @note Returned pointers reference caller-owned memory.
+ */
 int hash_get(struct hash_engine *engine, const void *key, size_t key_len,
 	     const void **value, size_t *value_len);
 
+/**
+ * @brief Delete the entry for a given key.
+ *
+ * @param engine   Target engine.
+ * @param key      Pointer to key bytes.
+ * @param key_len  Length of key in bytes.
+ * @return 0 on success; negative if not found (implementation-defined).
+ *
+ * @note Does not free key/value memory; caller remains responsible.
+ */
 int hash_delete(struct hash_engine *engine, const void *key, size_t key_len);
 
+/**
+ * @brief Destroy a previously initialized hash_engine and release resources.
+ *
+ * @param engine Target engine.
+ * @return 0 on success.
+ *
+ * @thread_safety Not safe with concurrent operations on the same engine.
+ * @note Does not free any caller-owned key/value memory.
+ */
 int hash_engine_destroy(struct hash_engine *engine);
 
+/**
+ * @brief Retrieve engine statistics.
+ *
+ * @param engine        Target engine.
+ * @param item_count    Out pointer for number of stored items (nullable).
+ * @param bucket_count  Out pointer for number of buckets (nullable).
+ * @param memory_usage  Out pointer for approximate total bytes (nullable).
+ * @return 0 on success.
+ *
+ * @thread_safety Safe to call concurrently; values reflect a point-in-time snapshot.
+ */
 int hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
 			  uint32_t *bucket_count, uint32_t *memory_usage);
 
