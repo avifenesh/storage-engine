@@ -61,13 +61,17 @@ static uint64_t hash_key_1 = 0;
 int
 hash_engine_init(struct hash_engine *engine, int bucket_count)
 {
-	engine->hash_buckets
-	    = malloc(bucket_count * sizeof(struct hash_bucket));
-	if (engine->hash_buckets == NULL) {
+	/* Ensure a known initial state before first resize (mutex not yet
+	 * init). */
+	engine->hash_buckets = NULL;
+	engine->bucket_count = 0;
+	engine->item_count = 0;
+	engine->total_memory = 0;
+
+	int success = hash_engine_resize(engine, bucket_count);
+	if (success != 0) {
 		return -1;
 	}
-	engine->bucket_count = bucket_count;
-
 	// Initialize random keys for this engine instance
 	if (siphash_init_random_key(&hash_key_0, &hash_key_1) != 0) {
 		printf("Warning: Using weak random keys\n");
@@ -239,8 +243,8 @@ hash_delete(struct hash_engine *engine, const void *key, size_t key_len)
  * - Values reflect current state at the time of locking.
  */
 int
-hash_get_stats(struct hash_engine *engine, uint32_t *item_count,
-	       uint32_t *bucket_count, uint32_t *memory_usage)
+hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
+		      uint32_t *bucket_count, uint32_t *memory_usage)
 {
 	(void)engine;
 	if (item_count)
@@ -254,5 +258,110 @@ hash_get_stats(struct hash_engine *engine, uint32_t *item_count,
 	*bucket_count = engine->bucket_count;
 	*memory_usage = engine->total_memory;
 	pthread_mutex_unlock(&engine->engine_lock);
+	return 0;
+}
+
+/**
+ * Compute bucket index for a key using SipHash-2-4.
+ *
+ * Parameters:
+ * - engine: Engine providing bucket_count for modulo mapping.
+ * - key: Pointer to key bytes (may be NULL if key_len == 0).
+ * - key_len: Length of key in bytes.
+ *
+ * Returns:
+ * - Index in the range [0, engine->bucket_count - 1].
+ *
+ * Thread-safety:
+ * - Read-only w.r.t. engine structure; safe to call concurrently.
+ *
+ * Notes:
+ * - Uses process-global SipHash keys initialized in hash_engine_init().
+ * - Behavior is undefined if engine->bucket_count == 0 (not expected in normal
+ * use).
+ */
+int
+hash_engine_hash(struct hash_engine *engine, const void *key, size_t key_len)
+{
+	uint64_t hash = siphash24(key, key_len, hash_key_0, hash_key_1);
+	return (int)(hash % (uint64_t)engine->bucket_count);
+}
+
+/**
+ * Resize the bucket array and rehash existing entries.
+ *
+ * Parameters:
+ * - engine: Engine to mutate.
+ * - new_bucket_count: Target number of buckets (> 0).
+ *
+ * Returns:
+ * - 0 on success; -1 on invalid count or allocation failure.
+ *
+ * Thread-safety:
+ * - Rehash path is serialized with engine_lock.
+ * - Supports an early initialization path before engine_lock is initialized.
+ *
+ * Notes:
+ * - Recomputes each entry's bucket under the new size and moves pointer fields
+ * only.
+ * - No collision resolution: on collisions during rehash, later entries
+ * overwrite earlier ones, potentially dropping data in this stub
+ * implementation.
+ * - Does not allocate/copy key/value payloads; ownership remains with the
+ * caller.
+ * - Counters (item_count, total_memory) are preserved.
+ * - Frees the old bucket array after swapping in the new one.
+ */
+int
+hash_engine_resize(struct hash_engine *engine, int new_bucket_count)
+{
+	struct hash_bucket *new_buckets, *old_buckets;
+	int old_count, i;
+
+	if (new_bucket_count <= 0)
+		return -1;
+
+	/* Allocate new table first to avoid holding the lock during allocation.
+	 */
+	new_buckets = calloc(new_bucket_count, sizeof(struct hash_bucket));
+	if (!new_buckets)
+		return -1;
+
+	/* First allocation path: init may call resize before mutex is
+	 * initialized. */
+	if (!engine->hash_buckets || engine->bucket_count == 0) {
+		engine->hash_buckets = new_buckets;
+		engine->bucket_count = new_bucket_count;
+		return 0;
+	}
+
+	/* Rehash path: serialize with ongoing operations. */
+	pthread_mutex_lock(&engine->engine_lock);
+
+	old_buckets = engine->hash_buckets;
+	old_count = engine->bucket_count;
+
+	/* Swap in the new table. */
+	engine->hash_buckets = new_buckets;
+	engine->bucket_count = new_bucket_count;
+
+	/* Move entries. Overwrite on collisions (no chaining in this stub). */
+	for (i = 0; i < old_count; i++) {
+		struct hash_bucket *ob = &old_buckets[i];
+		if (!ob->key || ob->key_len == 0)
+			continue;
+
+		int idx = hash_engine_hash(engine, ob->key, ob->key_len);
+		struct hash_bucket *nb = &engine->hash_buckets[idx];
+
+		nb->key = ob->key;
+		nb->key_len = ob->key_len;
+		nb->value = ob->value;
+		nb->value_len = ob->value_len;
+	}
+
+	pthread_mutex_unlock(&engine->engine_lock);
+
+	free(old_buckets);
 	return 0;
 }
