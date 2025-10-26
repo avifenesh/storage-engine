@@ -1,3 +1,33 @@
+/**
+ * @file siphash.c
+ * @brief SipHash-2-4 implementation: secure keyed hashing for hash tables.
+ *
+ * Overview:
+ * - Implements SipHash-2-4 (a fast cryptographic PRF) as specified in:
+ *   https://siphash.org
+ *
+ * Algorithm Summary:
+ * - Processes input in 8-byte (64-bit) little-endian blocks.
+ * - 2 compression rounds per block + 4 finalization rounds.
+ * - Resists length-extension and collision-finding attacks.
+ * - Uses a 128-bit key (split into k0, k1) and four 64-bit state variables.
+ *
+ * Key Management:
+ * - Per-process random keys: initialized via siphash_init_random_key() and
+ *   pinned with siphash_set_key().
+ * - Global keys are stored as static module state; thread-safe after
+ *   initialization.
+ *
+ * Platform Notes:
+ * - Endianness-agnostic; read64le() explicitly converts bytes to little-endian.
+ * - No alignment requirements; loads occur byte-by-byte.
+ * - No platform-specific SIMD in this userspace stub; planned for Sprint 4.
+ *
+ * Integration with Hash Engine:
+ * - Called by hash_engine_hash() to map (key, key_len) to bucket indices.
+ * - Keys are initialized once in hash_engine_init().
+ */
+
 #include "siphash.h"
 #include <fcntl.h>
 #include <stddef.h>

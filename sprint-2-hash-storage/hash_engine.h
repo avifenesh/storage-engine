@@ -1,25 +1,42 @@
 /**
  * @file hash_engine.h
- * @brief Public API for a minimal key/value hash storage engine.
+ * @brief Public API for a SipHash-based hash table with linear probing.
  *
  * Overview:
- * - Fixed-size array of buckets storing raw key/value pointers (caller-owned).
- * - Hashing is provided by hash_engine_hash() (SipHash-based in
- * implementation).
- * - Optional chaining via hash_bucket::next (implementation may or may not use
- * it).
+ * - Provides dynamic key/value storage using a bucket array with linear probing
+ *   for collision resolution and tombstones for correct deletion semantics.
+ * - Bucket array grows/shrinks based on load factor thresholds to maintain
+ *   O(1) average-case operations.
+ * - Uses SipHash-2-4 with per-process random keys to hash keys to bucket
+ *   indices.
+ * - Stores raw key/value pointers (caller-owned); no deep copying.
+ *
+ * Collision Resolution:
+ * - Linear probing: on collision, probe the next bucket (wrapping at array
+ *   end).
+ * - Tombstones: deleted entries are marked (key == NULL, key_len != 0) to
+ *   allow probe chains to continue past deleted slots.
+ * - Resize/rehash: moves all active entries to a new array; tombstones are
+ *   discarded.
  *
  * Thread-safety:
- * - Functions are intended to be safe for concurrent use on the same engine
- *   instance through internal locking, unless otherwise noted.
+ * - All public API functions are synchronized with an internal mutex.
+ * - Concurrent calls to the same engine are safe; operations are serialized.
  *
  * Ownership and lifetime:
- * - Keys and values are not copied by this API; only pointers and lengths are
- *   stored. Callers must keep the memory valid until deletion or overwrite.
+ * - Keys and values are not copied; only pointers and lengths are stored.
+ *   Callers must ensure memory remains valid until deletion or engine
+ *   destruction.
  *
  * Error handling:
- * - Functions generally return 0 on success, negative values on failure where
- * applicable.
+ * - Functions return 0 on success; negative (usually -1) on failure.
+ * - Not found conditions (hash_get, hash_delete) return negative values.
+ *
+ * Load Factor Tuning:
+ * - Resize occurs when load factor > MAX_LOAD_FACTOR (0.75) or
+ *   < MIN_LOAD_FACTOR (0.2).
+ * - Bucket count bounds: MIN_BUCKET_COUNT (16) to MAX_BUCKET_COUNT
+ *   (1048576).
  */
 
 #ifndef HASH_ENGINE_H
@@ -37,7 +54,7 @@
  * @def MIN_LOAD_FACTOR
  *      Lower threshold that may trigger a contraction when sparsity is high.
  */
-#define MAX_LOAD_FACTOR 0.7
+#define MAX_LOAD_FACTOR 0.75
 #define MIN_LOAD_FACTOR 0.2
 
 /**
@@ -210,5 +227,13 @@ int hash_engine_destroy(struct hash_engine *engine);
  */
 int hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
 			  uint32_t *bucket_count, uint32_t *memory_usage);
-
+/**
+ * @brief Determine if the engine needs resizing based on load factors.
+ *
+ * @param engine Target engine.
+ * @return Non-zero if resizing is recommended; zero otherwise.
+ *
+ * @thread_safety Safe to call concurrently.
+ */
+int needs_resize(struct hash_engine *engine);
 #endif

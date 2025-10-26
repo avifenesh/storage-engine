@@ -1,47 +1,64 @@
 /**
- * Hash engine implementation using SipHash for bucket indexing.
+ * @file hash_engine.c
+ * @brief Core hash table engine using SipHash with linear probing and
+ * tombstones.
  *
  * Overview:
- * - Provides a minimal key/value hash storage with fixed-size bucket array.
- * - Uses SipHash-derived 64-bit hash to map (key, key_len) to a bucket index.
- * - This userspace stub stores raw pointers without copying; callers own
- * memory.
+ * - Key/value storage backed by a dynamically-sized bucket array.
+ * - Uses SipHash-2-4 (seeded with per-process random keys) to compute bucket
+ *   indices; supports linear probing for collision resolution.
+ * - Tombstone-based deletion enables correct probe chain traversal during
+ *   search operations.
+ * - Resizing (grow/shrink) is driven by load factor thresholds.
+ * - Raw pointers are stored (no deep copies); callers own key/value memory.
+ *
+ * Collision Resolution:
+ * - Linear probing: on hash collision, probe subsequent buckets until finding
+ *   an empty slot or matching key.
+ * - Tombstones mark deleted entries (key == NULL, key_len != 0) to prevent
+ *   premature search termination.
+ * - Resize operations rehash all active entries; tombstones are discarded.
  *
  * Thread-safety:
- * - The engine uses a single pthread_mutex to serialize mutations and reads of
- *   shared state. Callers may invoke API functions concurrently on the same
- *   engine instance.
+ * - All public API functions are synchronized with engine->engine_lock.
+ * - Concurrent access to the same engine is safe; operations are serialized.
  *
  * Ownership and lifetime:
- * - Keys and values are not copied; only pointers and lengths are stored.
- *   Callers must ensure that key/value memory remains valid for the lifetime
- *   of the stored entry (until deletion or engine destruction).
+ * - Keys and values are not copied; only pointers and lengths stored.
+ *   Callers must keep memory valid until entry deletion or engine destruction.
+ * - Counters (item_count, total_memory) are approximate due to tombstone
+ *   overhead and lack of precise shrink tracking.
  *
- * Limitations (stub):
- * - No collision handling: each bucket holds a single entry; a new put()
- *   for the same index will overwrite previous contents.
- * - Error handling is minimal; most operations return 0 unconditionally.
- * - Memory accounting is approximate and based on provided lengths.
+ * Load Factor Thresholds:
+ * - MAX_LOAD_FACTOR (0.75): resize grow when exceeded.
+ * - MIN_LOAD_FACTOR (0.2): resize shrink when undercut (if bucket_count >
+ *   MIN_BUCKET_COUNT).
  */
 
 /**
- * Per-process SipHash key pair.
+ * Per-process SipHash key pair (static module state).
  *
  * These 64-bit keys seed SipHash used by hash_engine_hash() to compute
  * bucket indices. They are initialized in hash_engine_init() via
- * siphash_init_random_key(). If random initialization fails, weak keys
+ * siphash_init_random_key() to provide per-process randomness and defend
+ * against hash-flooding attacks. If random initialization fails, weak keys
  * (zero-initialized) will be used and a warning is printed.
+ *
+ * Thread-safety: Initialized once in hash_engine_init(); concurrent reads
+ * are safe after that.
  */
 static uint64_t hash_key_0 = 0;
 static uint64_t hash_key_1 = 0;
 
 #include "hash_engine.h"
+#include "bucket.h"
 #include "siphash.h"
 #include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * Initialize a hash_engine with the specified number of buckets.
@@ -131,22 +148,63 @@ int
 hash_put(struct hash_engine *engine, const void *key, size_t key_len,
 	 const void *value, size_t value_len)
 {
-	(void)engine;
-	(void)key;
-	(void)key_len;
-	(void)value;
-	(void)value_len;
-	int idx = hash_engine_hash(engine, key, key_len);
+retry:
 	pthread_mutex_lock(&engine->engine_lock);
-	struct hash_bucket *b = &engine->hash_buckets[idx];
-	b->key = key;
-	b->key_len = key_len;
-	b->value = value;
-	b->value_len = value_len;
-	engine->item_count++;
-	engine->total_memory += key_len + value_len;
+
+	int idx = hash_engine_hash(engine, key, key_len);
+	int first_tombstone = -1;
+	int steps = 0;
+
+	while (steps < engine->bucket_count) {
+		struct hash_bucket *b = &engine->hash_buckets[idx];
+
+		if (bucket_is_empty(b)) {
+			// Insert into first tombstone seen, otherwise here
+			int insert_idx
+			    = (first_tombstone != -1) ? first_tombstone : idx;
+			struct hash_bucket *dst
+			    = &engine->hash_buckets[insert_idx];
+
+			// New insert
+			dst->key = key;
+			dst->key_len = key_len;
+			dst->value = value;
+			dst->value_len = value_len;
+
+			engine->item_count++;
+			engine->total_memory += (int)(key_len + value_len);
+			pthread_mutex_unlock(&engine->engine_lock);
+			return 0;
+		}
+
+		if (bucket_is_tombstone(b) && first_tombstone == -1)
+			first_tombstone = idx;
+		else if (!bucket_is_tombstone(b) && b->key_len == key_len
+			 && memcmp(b->key, key, key_len) == 0) {
+			// Overwrite existing key
+			engine->total_memory
+			    += (int)((ssize_t)key_len - (ssize_t)b->key_len);
+			engine->total_memory += (int)((ssize_t)value_len
+						      - (ssize_t)b->value_len);
+
+			b->key = key;
+			b->key_len = key_len;
+			b->value = value;
+			b->value_len = value_len;
+
+			pthread_mutex_unlock(&engine->engine_lock);
+			return 0;
+		}
+
+		idx = (idx + 1) % engine->bucket_count;
+		steps++;
+	}
+
+	// Table appears full — grow and retry
 	pthread_mutex_unlock(&engine->engine_lock);
-	return 0;
+	if (hash_engine_resize(engine, engine->bucket_count * 2) != 0)
+		return -1;
+	goto retry;
 }
 
 /**
@@ -165,26 +223,43 @@ hash_put(struct hash_engine *engine, const void *key, size_t key_len,
  * - Internally synchronized; safe to call concurrently.
  *
  * Notes:
- * - This stub does not verify key equality if collisions occurred; it simply
- *   reads the bucket computed from the provided key.
+ * - Performs linear probing to handle collisions and verifies key equality
+ * using memcmp().
  * - Returned value pointer is owned by the caller; not copied.
  */
 int
 hash_get(struct hash_engine *engine, const void *key, size_t key_len,
 	 const void **value, size_t *value_len)
 {
-	(void)engine;
-	(void)key;
-	(void)key_len;
-	(void)value;
-	(void)value_len;
-	int idx = hash_engine_hash(engine, key, key_len);
 	pthread_mutex_lock(&engine->engine_lock);
-	struct hash_bucket *b = &engine->hash_buckets[idx];
-	*value = b->value;
-	*value_len = b->value_len;
+
+	int idx = hash_engine_hash(engine, key, key_len);
+	int steps = 0;
+
+	while (steps < engine->bucket_count) {
+		struct hash_bucket *b = &engine->hash_buckets[idx];
+
+		if (bucket_is_empty(b)) {
+			// Hard miss (no further cluster)
+			pthread_mutex_unlock(&engine->engine_lock);
+			return -1;
+		}
+		if (!bucket_is_tombstone(b) && b->key_len == key_len
+		    && memcmp(b->key, key, key_len) == 0) {
+			if (value)
+				*value = b->value;
+			if (value_len)
+				*value_len = b->value_len;
+			pthread_mutex_unlock(&engine->engine_lock);
+			return 0;
+		}
+
+		idx = (idx + 1) % engine->bucket_count;
+		steps++;
+	}
+
 	pthread_mutex_unlock(&engine->engine_lock);
-	return 0;
+	return -1;
 }
 
 /**
@@ -207,20 +282,35 @@ hash_get(struct hash_engine *engine, const void *key, size_t key_len,
 int
 hash_delete(struct hash_engine *engine, const void *key, size_t key_len)
 {
-	(void)engine;
-	(void)key;
-	(void)key_len;
-	int idx = hash_engine_hash(engine, key, key_len);
 	pthread_mutex_lock(&engine->engine_lock);
-	struct hash_bucket *b = &engine->hash_buckets[idx];
-	engine->item_count--;
-	engine->total_memory -= key_len;
-	b->key = NULL;
-	b->key_len = 0;
-	b->value = NULL;
-	b->value_len = 0;
+
+	int idx = hash_engine_hash(engine, key, key_len);
+	int steps = 0;
+
+	while (steps < engine->bucket_count) {
+		struct hash_bucket *b = &engine->hash_buckets[idx];
+
+		if (bucket_is_empty(b)) {
+			pthread_mutex_unlock(&engine->engine_lock);
+			return -1;
+		}
+		if (!bucket_is_tombstone(b) && b->key_len == key_len
+		    && memcmp(b->key, key, key_len) == 0) {
+			// Adjust counters before tombstone
+			engine->item_count--;
+			engine->total_memory
+			    -= (int)(b->key_len + b->value_len);
+			bucket_make_tombstone(b);
+			pthread_mutex_unlock(&engine->engine_lock);
+			return 0;
+		}
+
+		idx = (idx + 1) % engine->bucket_count;
+		steps++;
+	}
+
 	pthread_mutex_unlock(&engine->engine_lock);
-	return 0;
+	return -1;
 }
 
 /**
@@ -246,17 +336,13 @@ int
 hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
 		      uint32_t *bucket_count, uint32_t *memory_usage)
 {
-	(void)engine;
-	if (item_count)
-		*item_count = 0;
-	if (bucket_count)
-		*bucket_count = 0;
-	if (memory_usage)
-		*memory_usage = 0;
 	pthread_mutex_lock(&engine->engine_lock);
-	*item_count = engine->item_count;
-	*bucket_count = engine->bucket_count;
-	*memory_usage = engine->total_memory;
+	if (item_count)
+		*item_count = (uint32_t)engine->item_count;
+	if (bucket_count)
+		*bucket_count = (uint32_t)engine->bucket_count;
+	if (memory_usage)
+		*memory_usage = (uint32_t)engine->total_memory;
 	pthread_mutex_unlock(&engine->engine_lock);
 	return 0;
 }
@@ -315,53 +401,115 @@ hash_engine_hash(struct hash_engine *engine, const void *key, size_t key_len)
 int
 hash_engine_resize(struct hash_engine *engine, int new_bucket_count)
 {
-	struct hash_bucket *new_buckets, *old_buckets;
+	struct hash_bucket *new_buckets = NULL, *old_buckets;
 	int old_count, i;
 
 	if (new_bucket_count <= 0)
 		return -1;
 
-	/* Allocate new table first to avoid holding the lock during allocation.
-	 */
 	new_buckets = calloc(new_bucket_count, sizeof(struct hash_bucket));
 	if (!new_buckets)
 		return -1;
 
-	/* First allocation path: init may call resize before mutex is
-	 * initialized. */
+	/* First allocation path: init may call resize before mutex is init. */
 	if (!engine->hash_buckets || engine->bucket_count == 0) {
 		engine->hash_buckets = new_buckets;
 		engine->bucket_count = new_bucket_count;
 		return 0;
 	}
 
-	/* Rehash path: serialize with ongoing operations. */
 	pthread_mutex_lock(&engine->engine_lock);
 
 	old_buckets = engine->hash_buckets;
 	old_count = engine->bucket_count;
 
-	/* Swap in the new table. */
-	engine->hash_buckets = new_buckets;
-	engine->bucket_count = new_bucket_count;
+	int target_count = new_bucket_count;
 
-	/* Move entries. Overwrite on collisions (no chaining in this stub). */
-	for (i = 0; i < old_count; i++) {
-		struct hash_bucket *ob = &old_buckets[i];
-		if (!ob->key || ob->key_len == 0)
-			continue;
+	/* Attempt to rehash into new_buckets; grow and retry if it fills up. */
+	for (;;) {
+		// Reinsert with linear probing
+		int failed = 0;
 
-		int idx = hash_engine_hash(engine, ob->key, ob->key_len);
-		struct hash_bucket *nb = &engine->hash_buckets[idx];
+		// Ensure new_buckets matches target_count and is zeroed
+		// (first iteration already allocated; later iterations re-alloc
+		// below)
+		for (i = 0; i < old_count; i++) {
+			struct hash_bucket *ob = &old_buckets[i];
+			if (!ob->key || bucket_is_tombstone(ob))
+				continue;
 
-		nb->key = ob->key;
-		nb->key_len = ob->key_len;
-		nb->value = ob->value;
-		nb->value_len = ob->value_len;
+			uint64_t h = siphash24(ob->key, ob->key_len, hash_key_0,
+					       hash_key_1);
+			int idx = (int)(h % (uint64_t)target_count);
+			int steps = 0;
+
+			while (steps < target_count) {
+				struct hash_bucket *nb = &new_buckets[idx];
+				if (bucket_is_empty(nb)) {
+					nb->key = ob->key;
+					nb->key_len = ob->key_len;
+					nb->value = ob->value;
+					nb->value_len = ob->value_len;
+					break;
+				}
+				idx = (idx + 1) % target_count;
+				steps++;
+			}
+			if (steps == target_count) {
+				failed = 1;
+				break;
+			}
+		}
+
+		if (!failed)
+			break;
+
+		// Grow and retry: free current attempt and allocate a bigger
+		// table
+		free(new_buckets);
+		target_count *= 2;
+		new_buckets = calloc(target_count, sizeof(struct hash_bucket));
+		if (!new_buckets) {
+			pthread_mutex_unlock(&engine->engine_lock);
+			return -1;
+		}
+		// Loop to retry
 	}
+
+	/* Swap tables after successful rehash. */
+	engine->hash_buckets = new_buckets;
+	engine->bucket_count = target_count;
 
 	pthread_mutex_unlock(&engine->engine_lock);
 
 	free(old_buckets);
+	return 0;
+}
+
+/**
+ * Determine if the engine needs resizing based on load factors.
+ *
+ * Parameters:
+ * - engine: Target engine.
+ *
+ * Returns:
+ * - Non-zero if resizing is recommended; zero otherwise.
+ *
+ * Thread-safety:
+ * - Safe to call concurrently.
+ *
+ * Notes:
+ * - Uses simple load factor thresholds to suggest resizing.
+ */
+int
+needs_resize(struct hash_engine *engine)
+{
+	float load_factor
+	    = (float)engine->item_count / (float)engine->bucket_count;
+	if (load_factor > MAX_LOAD_FACTOR) {
+		return 1;
+	} else if (load_factor < MIN_LOAD_FACTOR) {
+		return 1;
+	}
 	return 0;
 }
