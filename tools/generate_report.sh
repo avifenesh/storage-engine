@@ -23,5 +23,6 @@ else
 fi
 
 echo "\nTips:"
-echo "- Run: make test-expert and make test-sprint5 to generate data points"
+echo "- Run: make run-tests and make run-bench to gather measurements"
+echo "- Record p50/p99 and environment info (CPU, kernel)"
 echo "- Edit metrics.json with your measured values and re-run: make report"
