@@ -25,8 +25,8 @@ test_basic_operations(void)
 	}
 
 	rc = hash_get(&engine, key, strlen(key), &out_value, &out_value_len);
-	if (rc != 0 || out_value_len != strlen(value) ||
-	    memcmp(out_value, value, out_value_len) != 0) {
+	if (rc != 0 || out_value_len != strlen(value)
+	    || memcmp(out_value, value, out_value_len) != 0) {
 		fprintf(stderr, "hash_tests: hash_get failed (%d)\n", rc);
 		rc = (rc != 0) ? rc : -1;
 		goto cleanup;
