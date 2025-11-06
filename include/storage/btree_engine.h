@@ -19,10 +19,9 @@ int btree_engine_init(struct btree_engine *tree);
 int btree_engine_destroy(struct btree_engine *tree);
 
 int btree_insert(struct btree_engine *tree, const void *key, size_t key_len,
-		const void *value, size_t value_len);
+		 const void *value, size_t value_len);
 int btree_search(struct btree_engine *tree, const void *key, size_t key_len,
-		const void **value, size_t *value_len);
+		 const void **value, size_t *value_len);
 int btree_delete(struct btree_engine *tree, const void *key, size_t key_len);
 
 #endif /* BTREE_ENGINE_H */
-

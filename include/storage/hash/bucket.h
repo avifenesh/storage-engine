@@ -14,4 +14,3 @@ int bucket_is_tombstone(const struct hash_bucket *bucket);
 void bucket_make_tombstone(struct hash_bucket *bucket);
 
 #endif /* BUCKET_H */
-

@@ -11,4 +11,3 @@ void siphash_set_key(uint64_t k0, uint64_t k1);
 uint64_t siphash_with_global_key(const void *data, size_t len);
 
 #endif
-

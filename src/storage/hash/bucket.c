@@ -21,4 +21,3 @@ bucket_make_tombstone(struct hash_bucket *bucket)
 {
 	bucket->key = NULL;
 }
-

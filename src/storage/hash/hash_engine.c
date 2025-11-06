@@ -48,16 +48,15 @@ hash_engine_init(struct hash_engine *engine, int bucket_count)
 
 	if (hash_key_0 == 0 && hash_key_1 == 0) {
 		if (siphash_init_random_key(&k0, &k1) != 0) {
-			fprintf(stderr,
-				"hash_engine_init: warning: weak SipHash key used\n");
+			fprintf(stderr, "hash_engine_init: warning: weak "
+					"SipHash key used\n");
 		}
 		hash_key_0 = k0;
 		hash_key_1 = k1;
 		siphash_set_key(k0, k1);
 	}
 
-	engine->hash_buckets
-	    = calloc(bucket_count, sizeof(struct hash_bucket));
+	engine->hash_buckets = calloc(bucket_count, sizeof(struct hash_bucket));
 	if (!engine->hash_buckets)
 		return -ENOMEM;
 
@@ -76,7 +75,7 @@ hash_engine_hash(struct hash_engine *engine, const void *key, size_t key_len)
 
 int
 hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
-			   uint32_t *bucket_count, uint32_t *memory_usage)
+		      uint32_t *bucket_count, uint32_t *memory_usage)
 {
 	if (!engine)
 		return -EINVAL;
@@ -145,8 +144,10 @@ hash_put(struct hash_engine *engine, const void *key, size_t key_len,
 		int idx = (index + i) % engine->bucket_count;
 		struct hash_bucket *bucket = &engine->hash_buckets[idx];
 		if (bucket_is_empty(bucket)) {
-			int target = (first_tombstone != -1) ? first_tombstone : idx;
-			struct hash_bucket *dest = &engine->hash_buckets[target];
+			int target
+			    = (first_tombstone != -1) ? first_tombstone : idx;
+			struct hash_bucket *dest
+			    = &engine->hash_buckets[target];
 			dest->key = key;
 			dest->key_len = key_len;
 			dest->value = value;
@@ -159,7 +160,8 @@ hash_put(struct hash_engine *engine, const void *key, size_t key_len,
 		if (bucket_is_tombstone(bucket) && first_tombstone == -1)
 			first_tombstone = idx;
 		else if (!bucket_is_tombstone(bucket)
-			 && keys_equal(bucket->key, bucket->key_len, key, key_len)) {
+			 && keys_equal(bucket->key, bucket->key_len, key,
+				       key_len)) {
 			engine->total_memory -= (int)bucket->value_len;
 			bucket->value = value;
 			bucket->value_len = value_len;
@@ -196,9 +198,8 @@ hash_delete(struct hash_engine *engine, const void *key, size_t key_len)
 			bucket_make_tombstone(bucket);
 			pthread_mutex_unlock(&engine->engine_lock);
 			if (needs_resize(engine))
-				(void)hash_engine_resize(engine,
-						  engine->bucket_count
-						      / 2);
+				(void)hash_engine_resize(
+				    engine, engine->bucket_count / 2);
 			return 0;
 		}
 	}
@@ -259,7 +260,8 @@ hash_engine_resize(struct hash_engine *engine, int new_bucket_count)
 			if (!ob->key || bucket_is_tombstone(ob))
 				continue;
 
-			h = siphash(ob->key, ob->key_len, hash_key_0, hash_key_1);
+			h = siphash(ob->key, ob->key_len, hash_key_0,
+				    hash_key_1);
 			idx = (int)(h % (uint64_t)target_count);
 
 			while (steps < target_count) {
