@@ -42,9 +42,11 @@ FORMAT_FILES = $(SOURCES) $(HEADERS)
 ASSEMBLY = $(SOURCES:.c=.s)
 OBJECTS = $(SOURCES:.c=.o)
 TARGETS = $(SOURCES:.c=)
+TEST_SOURCES = $(wildcard $(addsuffix /tests/*.c,$(SPRINT_DIRS)))
+TEST_BINARIES = $(TEST_SOURCES:%.c=build/tests/%.out)
 
 # Default target - generate assembly files
-.PHONY: all asm clean help
+.PHONY: all asm clean help tests run-tests
 
 all: asm
 
@@ -66,6 +68,34 @@ asm: $(ASSEMBLY)
 %.o: %.c
 	@echo "⚙️  Compiling object file $@..."
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Build test binaries into build/tests/...
+build/tests/%.out: %.c
+	@echo "🧪 Building test $<..."
+	@mkdir -p $(dir $@)
+	@sprint_dir=$$(dirname $< | sed 's#/tests$$##'); \
+	core_sources=$$(find $$sprint_dir -maxdepth 1 -name '*.c' -print | tr '\n' ' '); \
+	$(CC) $(BINARY_SAFE_CFLAGS) -o $@ $$core_sources $<
+
+tests: $(TEST_BINARIES)
+	@echo "✅ Built test binaries: $(TEST_BINARIES)"
+
+run-tests: tests
+	@echo "🚀 Running test binaries..."
+	@status=0; \
+	for test_bin in $(TEST_BINARIES); do \
+		echo "▶ $$test_bin"; \
+		if ! timeout 30s $$test_bin; then \
+			status=1; \
+			break; \
+		fi; \
+	done; \
+	if [ $$status -eq 0 ]; then \
+		echo "🎉 All tests passed"; \
+	else \
+		echo "❌ Test run failed"; \
+	fi; \
+	exit $$status
 
 # Clean build artifacts
 clean:
@@ -585,6 +615,8 @@ help:
 	@echo "  asm-learn    - Generate educational assembly analysis (shows optimizations, unused code)"
 	@echo "  asm-optimize-report - Detailed optimization analysis with exact changes"
 	@echo "  asm-compare LOW=X HIGH=Y - Compare any two optimization levels"
+	@echo "  tests        - Build all sprint test binaries under build/tests"
+	@echo "  run-tests    - Build and execute all sprint test binaries"
 	@echo "  executables  - Build executable files"
 	@echo "  clean        - Remove all build artifacts"
 	@echo ""
