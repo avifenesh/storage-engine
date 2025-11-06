@@ -1,33 +1,28 @@
-# ARM Storage Engine Learning Project
+# Columnar Database Engine — Learning Project
 
-A personal learning project to understand C systems programming, Linux kernel development, and storage engine algorithms by implementing different storage architectures from scratch.
+Userspace‑first learning project to build a traditional columnar database incrementally: storage (hash + B+ tree), page/buffer + WAL, vectorized execution, and a pragmatic SQL subset.
 
-## Overview
+## Structure
 
-This is a learning project focused on:
-- Linux kernel module development
-- Storage engine algorithms (hash tables, B+ trees)
-- ARM64 optimization with NEON SIMD
-- Memory management and performance analysis
+- `src/` — production sources organized by subsystem (e.g., `storage/hash`, `storage/btree`)
+- `include/` — public headers consumed by sources and tests
+- `tests/` — small standalone C tests with `main()`
+- `bench/` — microbenchmarks (local, not for CI)
+- `docs/` — sprint guides, roadmap, resources, and performance targets
 
-The project is organized into sprints, each implementing a different storage engine architecture.
-
-## Project Structure
-
-- **sprint-1-core-memory**: C fundamentals and memory management
-- **sprint-2-hash-storage**: Hash table storage engine with kernel interface
-- **sprint-3-btree-storage**: B+ tree storage for sorted data
-- **sprint-4-simd-optimization**: ARM NEON SIMD optimization
-- **sprint-5-production-features**: Performance tuning and benchmarking
-
-## Build Instructions
+## Build & Run
 
 ```bash
-make                    # Build current sprint
-make memory-check       # Run memory safety tests
-make format            # Format code with Linux kernel style
+make asm            # Generate assembly for sources (learning)
+make tests          # Build tests
+make run-tests      # Build and run all tests
+make bench          # Build microbenchmarks (e.g., hash bench)
+make run-bench      # Build + run all microbenchmarks
+make memory-check   # ASan + Valgrind compile and run
+make format         # Apply Linux kernel style formatting
 ```
 
-## Important Notes
+## Notes
 
-This is a learning project, not production software. Code may be incomplete, suboptimal, or contain bugs as part of the learning process. Kernel modules can crash systems - always use a VM for development.
+- Kernel integration is optional and profile‑gated; most work stays in userspace.
+- This is a learning repository: keep changes small, measurable, and documented.

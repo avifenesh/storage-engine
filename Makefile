@@ -357,68 +357,13 @@ executables: $(TARGETS)
 build-dir:
 	@mkdir -p build
 
-# Build and run Sprint 5 unit test harness, plus build tools
-test-sprint5: build-dir
-	@echo "🧪 Building Sprint 5 tests/tools..."
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/s5_test \
-		sprint-5-production-features/test_suite.c \
-		sprint-5-production-features/wal.c \
-		sprint-5-production-features/page_cache.c
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/s5_recovery \
-		sprint-5-production-features/recovery.c \
-		sprint-5-production-features/wal.c
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/s5_fsck \
-		sprint-5-production-features/fsck.c
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/s5_ioprof \
-		sprint-5-production-features/io_profile.c
-	@echo "🚀 Running Sprint 5 tests..."
-	./build/s5_test
-	@echo "✅ Sprint 5 tests passed"
-
-# Expert harnesses (compile/run; stubs print TODO until implemented)
-.PHONY: test-expert
-test-expert: build-dir
-	@echo "🧪 Building expert harnesses..."
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/hash_prop \
-		sprint-2-hash-storage/tests/property_stub.c \
-		sprint-2-hash-storage/hash_engine.c \
-		sprint-2-hash-storage/neon_hash.c
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/btree_prop \
-		sprint-3-btree-storage/property_stub.c \
-		sprint-3-btree-storage/btree_engine.c \
-		sprint-3-btree-storage/neon_compare.c
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/chaos_replay \
-		sprint-5-production-features/chaos_replay.c \
-		sprint-5-production-features/wal.c
-	@echo "🚀 Running expert harnesses..."
-	./build/hash_prop || true
-	./build/btree_prop || true
-	./build/chaos_replay || true
-	@echo "✅ Expert harness run complete"
-
-# Build and run simple smoke tests for Sprint 2/3
-test-smoke: build-dir
-	@echo "🧪 Building Sprint 2/3 smoke tests..."
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/hash_tests \
-		sprint-2-hash-storage/tests/hash_tests.c \
-		sprint-2-hash-storage/hash_engine.c \
-		sprint-2-hash-storage/neon_hash.c
-	$(CC) $(BINARY_SAFE_CFLAGS) -o build/btree_bench \
-		sprint-3-btree-storage/btree_benchmarks.c \
-		sprint-3-btree-storage/btree_engine.c \
-		sprint-3-btree-storage/neon_compare.c
-	@echo "🚀 Running smoke tests..."
-	./build/hash_tests || true
-	./build/btree_bench || true
-	@echo "✅ Smoke run complete"
-
-# Aggregate QA helper: build and run all learning checks
+# Aggregate QA helper: format + basic tests
 .PHONY: qa
-qa: test-sprint5 test-smoke format-check
+qa: format-check run-tests
 	@echo "🎉 QA checks completed. Consider also running: make asm-learn"
 
 .PHONY: report
-report: test-sprint5 test-expert
+report:
 	@echo "📊 Generating metrics report..."
 	bash tools/generate_report.sh
 

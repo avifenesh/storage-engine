@@ -31,7 +31,5 @@ Design and implement a userspace B+ tree with efficient range scans and stable i
 ---
 
 ## Out of Scope (Next Sprints)
-- Kernel devices/IOCTL.
 - Persistence/page manager integration.
 - SIMD‑accelerated comparisons (planned later).
-

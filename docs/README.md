@@ -41,7 +41,7 @@ Guiding principles:
   - **sprint-17-observability.md** – Benchmarks, metrics, regressions
 
 ### Additional Resources
-- **[MAKEFILE_USAGE_GUIDE.md](MAKEFILE_USAGE_GUIDE.md)** - Build system documentation
+- See root `README.md` for Make targets reference
 
 ## 🎯 Project Goals
 
@@ -83,7 +83,7 @@ Guiding principles:
 - **Development Environment**:
   - ARM64 Linux system (or VM)
   - GCC 9+ with ARM64 support
-  - Linux kernel headers (linux-headers-$(uname -r))
+  - (Optional) Linux kernel headers if you plan to explore kernel topics
   - Git for version control
   - Make (GNU Make 4.0+)
 - **Hardware Requirements**:
@@ -92,11 +92,11 @@ Guiding principles:
   - ARM64 processor (or emulation)
 
 ### Recommended Setup
-Use a VM for kernel experiments; measure performance locally, not in CI. See `MAKEFILE_USAGE_GUIDE.md` for commands.
+Use a VM for kernel experiments; measure performance locally, not in CI.
 
 ### Quick Start
 1. Complete Sprint 1 if not already done ✅
-2. **SET UP A VM FOR KERNEL DEVELOPMENT**
+2. (Optional) Set up a VM if you plan kernel experiments
 3. Read the sprint guides under docs/sprints/ starting with sprint-2-hash-storage.md
 4. Follow the implementation guide in each sprint
 5. Use the Makefile for building and testing
