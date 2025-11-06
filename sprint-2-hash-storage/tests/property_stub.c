@@ -95,9 +95,9 @@ run_trial(void)
 					&value_len)
 			       == 0);
 			assert(value_len == slots[i].value_len);
-			assert(memcmp(value, &slots[i].value,
-				      slots[i].value_len)
-			       == 0);
+			assert(
+			    memcmp(value, &slots[i].value, slots[i].value_len)
+			    == 0);
 			expected++;
 		}
 	}
