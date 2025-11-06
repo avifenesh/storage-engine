@@ -30,7 +30,7 @@ main(int argc, char **argv)
 	size_t cuts_n;
 	int in, out;
 	char tmp[64];
-	char buf[4096];
+	static char io_buf[4096];
 	ssize_t r;
 	off_t sz, new_sz;
 
@@ -44,9 +44,9 @@ main(int argc, char **argv)
 
 	// Append records
 	for (int i = 0; i < n; i++) {
-		char buf[32];
-		int len = snprintf(buf, sizeof(buf), "rec_%d", i);
-		if (wal_append(wal, buf, (size_t)len, NULL) != 0) {
+		char rec_buf[32];
+		int len = snprintf(rec_buf, sizeof(rec_buf), "rec_%d", i);
+		if (wal_append(wal, rec_buf, (size_t)len, NULL) != 0) {
 			fprintf(stderr, "append failed\n");
 		}
 	}
@@ -71,8 +71,8 @@ main(int argc, char **argv)
 			close(in);
 			continue;
 		}
-		while ((r = read(in, buf, sizeof(buf))) > 0)
-			write(out, buf, (size_t)r);
+		while ((r = read(in, io_buf, sizeof(io_buf))) > 0)
+			write(out, io_buf, (size_t)r);
 		close(in);
 		// truncate
 		sz = lseek(out, 0, SEEK_END);

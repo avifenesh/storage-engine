@@ -20,6 +20,10 @@
  * - During resize/rehash, only active entries are copied; tombstones are
  *   discarded, reclaiming wasted space.
  *
+ * Thread-safety:
+ * - No internal synchronization; callers must ensure exclusive access (e.g.,
+ *   hold the engine's mutex) before modifying or inspecting buckets.
+ *
  * Design:
  * - State encoding uses existing hash_bucket fields (key and key_len) to avoid
  *   additional overhead (no separate "flags" field).
@@ -75,6 +79,7 @@ bucket_is_tombstone(const struct hash_bucket *bucket)
  * Notes:
  * - Sets key to NULL but preserves key_len as deletion marker.
  * - Allows linear probing to continue past this slot during search.
+ * - Leaves value/value_len untouched; they are ignored after marking.
  * - Does not free any caller-owned memory.
  */
 void

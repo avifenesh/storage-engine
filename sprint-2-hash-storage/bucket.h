@@ -21,6 +21,11 @@
  * - hash_engine_resize(): Skips tombstones during rehash; only copies active
  *   entries to new table.
  *
+ * Thread-safety:
+ * - These helpers do not perform synchronization. Callers must ensure
+ *   exclusive access to the bucket (e.g., hold the engine lock) when modifying
+ *   or inspecting shared state.
+ *
  * Design Rationale:
  * - State is encoded in existing fields (key pointer and key_len) to avoid
  *   adding a separate flag byte.
@@ -60,6 +65,8 @@ int bucket_is_empty(const struct hash_bucket *bucket);
  * Notes:
  * - Tombstones allow linear probing to continue past deleted slots.
  * - Encoded as key == NULL with non-zero key_len.
+ * - Callers should hold appropriate synchronization when reading/modifying
+ *   buckets.
  */
 int bucket_is_tombstone(const struct hash_bucket *bucket);
 
@@ -72,6 +79,7 @@ int bucket_is_tombstone(const struct hash_bucket *bucket);
  * Notes:
  * - Sets key to NULL but preserves key_len as deletion marker.
  * - Allows linear probing to continue past this slot during search.
+ * - Leaves value/value_len untouched; they are ignored once a tombstone.
  * - Does not free any caller-owned memory.
  */
 void bucket_make_tombstone(struct hash_bucket *bucket);

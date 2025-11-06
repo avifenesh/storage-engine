@@ -1,6 +1,5 @@
 {
     "github.copilot.chat.codesearch.enabled": true,
-    "github.copilot.chat.agent.thinkingTool": true,
     "github.copilot.chat.editor.temporalContext.enabled": true,
     "github.copilot.chat.edits.temporalContext.enabled": true,
     "github.copilot.chat.generateTests.codeLens": true,
@@ -18,7 +17,7 @@
     "vim.vimrc.enable": true,
     "vim.vimrc.path": "$HOME/.vimrc",
     "[c]": {
-        "editor.defaultFormatter": "ms-vscode.cpptools"
+        "editor.defaultFormatter": "xaver.clang-format"
     },
     "C_Cpp.clang_format_style": "file",
     "C_Cpp.clang_format_fallbackStyle": "GNU",
@@ -29,6 +28,5 @@
     "editor.formatOnPaste": true,
     "[jsonc]": {
         "editor.defaultFormatter": "vscode.json-language-features"
-    },
-    "clangd.arguments": []
     }
+}

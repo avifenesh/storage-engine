@@ -29,8 +29,9 @@
  *   destruction.
  *
  * Error handling:
- * - Functions return 0 on success; negative (usually -1) on failure.
- * - Not found conditions (hash_get, hash_delete) return negative values.
+ * - Functions return 0 on success; negative errno-like codes on failure
+ *   (e.g., -EINVAL for bad args, -ENOMEM for allocation failure,
+ *   -ENOENT for not found).
  *
  * Load Factor Tuning:
  * - Resize occurs when load factor > MAX_LOAD_FACTOR (0.75) or
@@ -47,7 +48,7 @@
 #include <stdint.h>
 
 /**
- * Load factor thresholds used by resize policies (if implemented).
+ * Load factor thresholds used by resize policies.
  *
  * @def MAX_LOAD_FACTOR
  *      Upper threshold that may trigger an expansion when item density is high.
@@ -76,7 +77,7 @@
 
 /**
  * @struct hash_bucket
- * @brief Node representing a single key/value entry in a bucket chain.
+ * @brief Node representing a single key/value entry in an open-addressed table.
  *
  * @var hash_bucket::key
  *      Pointer to caller-owned key bytes (not copied).
@@ -87,8 +88,8 @@
  * @var hash_bucket::value_len
  *      Length of the value in bytes.
  * @var hash_bucket::next
- *      Next node in the chain for this bucket (NULL if end). May be unused by
- *      some implementations.
+ *      Optional link for chaining-based strategies; unused by the current
+ *      linear probing implementation.
  */
 struct hash_bucket {
 	const void *key;
@@ -126,7 +127,8 @@ struct hash_engine {
  *
  * @param engine        Pointer to an allocated engine struct to initialize.
  * @param bucket_count  Number of buckets to allocate.
- * @return 0 on success; -1 on allocation or mutex initialization failure.
+ * @return 0 on success; negative errno on failure (e.g., -EINVAL, -ENOMEM,
+ *         -EAGAIN).
  *
  * @thread_safety Not thread-safe with concurrent use of the same engine
  *                before initialization completes.
@@ -151,10 +153,13 @@ int hash_engine_hash(struct hash_engine *engine, const void *key,
  *
  * @param engine           Target engine.
  * @param new_bucket_count Desired new number of buckets.
- * @return 0 on success; negative on failure (no change on failure).
+ * @return 0 on success; -EINVAL for invalid counts; -ENOMEM on allocation
+ *         failure (no change to the table on failure).
  *
  * @thread_safety Uses internal locking; not re-entrant on the same engine.
- * @warning May be O(n) due to rehashing and memory allocations.
+ * @details Rehash reinserts active entries using linear probing and discards
+ *          tombstones. On pathological clustering, grows the target size and
+ *          retries until successful. May be O(n).
  */
 int hash_engine_resize(struct hash_engine *engine, int new_bucket_count);
 
@@ -166,11 +171,13 @@ int hash_engine_resize(struct hash_engine *engine, int new_bucket_count);
  * @param key_len    Length of key in bytes.
  * @param value      Pointer to value bytes (caller-owned).
  * @param value_len  Length of value in bytes.
- * @return 0 on success; negative on failure (if any).
+ * @return 0 on success; -ENOSPC if the table is at capacity; -ENOMEM if a
+ *         resize allocation fails.
  *
  * @note No deep copies are performed; caller must manage memory lifetimes.
- * @warning Collision handling depends on implementation; entries may be
- *          overwritten if collisions are not resolved.
+ * @details Linear probing with tombstone reuse; overwrites value if the key
+ *          already exists in the probe chain. May proactively grow and retry
+ *          when projected load exceeds thresholds.
  */
 int hash_put(struct hash_engine *engine, const void *key, size_t key_len,
 	     const void *value, size_t value_len);
@@ -183,7 +190,7 @@ int hash_put(struct hash_engine *engine, const void *key, size_t key_len,
  * @param key_len    Length of key in bytes.
  * @param value      Out pointer receiving stored value pointer (not copied).
  * @param value_len  Out pointer receiving stored value length.
- * @return 0 on success; negative if not found (implementation-defined).
+ * @return 0 on success; -ENOENT if the key is not present.
  *
  * @note Returned pointers reference caller-owned memory.
  */
@@ -196,7 +203,7 @@ int hash_get(struct hash_engine *engine, const void *key, size_t key_len,
  * @param engine   Target engine.
  * @param key      Pointer to key bytes.
  * @param key_len  Length of key in bytes.
- * @return 0 on success; negative if not found (implementation-defined).
+ * @return 0 on success; -ENOENT if the key is not present.
  *
  * @note Does not free key/value memory; caller remains responsible.
  */
@@ -233,7 +240,7 @@ int hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
  * @param engine Target engine.
  * @return Non-zero if resizing is recommended; zero otherwise.
  *
- * @thread_safety Safe to call concurrently.
+ * @thread_safety Not thread-safe; caller must hold engine_lock.
  */
 int needs_resize(struct hash_engine *engine);
 #endif

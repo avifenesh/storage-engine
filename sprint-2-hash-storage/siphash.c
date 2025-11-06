@@ -16,7 +16,9 @@
  * - Per-process random keys: initialized via siphash_init_random_key() and
  *   pinned with siphash_set_key().
  * - Global keys are stored as static module state; thread-safe after
- *   initialization.
+ *   initialization. The first lazy initialization via
+ *   siphash_with_global_key() is not guaranteed race-free in highly
+ *   concurrent starts.
  *
  * Platform Notes:
  * - Endianness-agnostic; read64le() explicitly converts bytes to little-endian.
@@ -132,25 +134,22 @@ int
 siphash_init_random_key(uint64_t *k0, uint64_t *k1)
 {
 	int fd = open("/dev/urandom", O_RDONLY);
-	if (fd < 0) {
-		// Fallback to weaker randomness
-		srand((unsigned int)time(NULL) ^ getpid());
-		*k0 = ((uint64_t)rand() << 32) | rand();
-		*k1 = ((uint64_t)rand() << 32) | rand();
-		return -1; // Indicate weak randomness
+	if (fd >= 0) {
+		uint8_t key_bytes[16];
+		ssize_t bytes_read = read(fd, key_bytes, 16);
+		close(fd);
+		if (bytes_read == 16) {
+			*k0 = read64le(key_bytes);
+			*k1 = read64le(key_bytes + 8);
+			return 0; /* strong randomness */
+		}
 	}
 
-	uint8_t key_bytes[16];
-	ssize_t bytes_read = read(fd, key_bytes, 16);
-	close(fd);
-
-	if (bytes_read != 16) {
-		return -1;
-	}
-
-	*k0 = read64le(key_bytes);
-	*k1 = read64le(key_bytes + 8);
-	return 0;
+	/* Fallback to weaker randomness on any failure path. */
+	srand((unsigned int)time(NULL) ^ getpid());
+	*k0 = ((uint64_t)rand() << 32) | (uint64_t)rand();
+	*k1 = ((uint64_t)rand() << 32) | (uint64_t)rand();
+	return -1; /* indicate weak randomness used */
 }
 
 // Set global keys (call once at startup)
@@ -179,17 +178,21 @@ uint64_t
 siphash(const void *data, size_t len, uint64_t k0, uint64_t k1)
 {
 	const uint8_t *in = (const uint8_t *)data;
+	const uint8_t *end;
+	uint64_t v0, v1, v2, v3;
+	uint64_t m;
+	uint64_t b;
 
 	// Initialize state with magic constants XORed with key
-	uint64_t v0 = 0x736f6d6570736575ULL ^ k0;
-	uint64_t v1 = 0x646f72616e646f6dULL ^ k1;
-	uint64_t v2 = 0x6c7967656e657261ULL ^ k0;
-	uint64_t v3 = 0x7465646279746573ULL ^ k1;
+	v0 = 0x736f6d6570736575ULL ^ k0;
+	v1 = 0x646f72616e646f6dULL ^ k1;
+	v2 = 0x6c7967656e657261ULL ^ k0;
+	v3 = 0x7465646279746573ULL ^ k1;
 
 	// Process full 8-byte blocks
-	const uint8_t *end = in + len - (len % 8);
+	end = in + len - (len % 8);
 	for (; in != end; in += 8) {
-		uint64_t m = read64le(in);
+		m = read64le(in);
 		v3 ^= m;
 		SIPROUND;
 		SIPROUND; // 2 compression rounds
@@ -197,22 +200,29 @@ siphash(const void *data, size_t len, uint64_t k0, uint64_t k1)
 	}
 
 	// Handle remaining bytes + length
-	uint64_t b = ((uint64_t)len) << 56;
+	b = ((uint64_t)len) << 56;
 	switch (len & 7) {
 	case 7:
 		b |= ((uint64_t)in[6]) << 48;
+		/* fallthrough */
 	case 6:
 		b |= ((uint64_t)in[5]) << 40;
+		/* fallthrough */
 	case 5:
 		b |= ((uint64_t)in[4]) << 32;
+		/* fallthrough */
 	case 4:
 		b |= ((uint64_t)in[3]) << 24;
+		/* fallthrough */
 	case 3:
 		b |= ((uint64_t)in[2]) << 16;
+		/* fallthrough */
 	case 2:
 		b |= ((uint64_t)in[1]) << 8;
+		/* fallthrough */
 	case 1:
 		b |= ((uint64_t)in[0]);
+		/* fallthrough */
 	case 0:
 		break;
 	}

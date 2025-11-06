@@ -521,7 +521,7 @@ format-check:
 	@failed_files=""; \
 	for file in $(FORMAT_FILES); do \
 		echo "  🔍 Checking $$file..."; \
-		if ! clang-format --style="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false, ColumnLimit: 80, AlignTrailingComments: true, SpaceBeforeParens: ControlStatements, KeepEmptyLinesAtTheStartOfBlocks: false}" $$file | diff -u $$file - >/dev/null; then \
+		if ! clang-format --style=file "$$file" | diff -u "$$file" - >/dev/null; then \
 			echo "    ❌ $$file needs formatting"; \
 			failed_files="$$failed_files $$file"; \
 		else \
@@ -555,9 +555,8 @@ install-hooks:
 		echo 'if [ -z "$$STAGED_C_FILES" ]; then echo "ℹ️  No C files staged"; exit 0; fi' >> .hooks/pre-commit.template; \
 		echo 'if ! command -v clang-format >/dev/null 2>&1; then echo "💡 clang-format not found, skipping..."; exit 0; fi' >> .hooks/pre-commit.template; \
 		echo 'FAILED_FILES=""' >> .hooks/pre-commit.template; \
-		echo 'STYLE="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false, ColumnLimit: 80, AlignTrailingComments: true, SpaceBeforeParens: ControlStatements, KeepEmptyLinesAtTheStartOfBlocks: false}"' >> .hooks/pre-commit.template; \
 		echo 'for file in $$STAGED_C_FILES; do' >> .hooks/pre-commit.template; \
-		echo '  if [ -f "$$file" ] && ! clang-format --style="$$STYLE" "$$file" | diff -u "$$file" - >/dev/null; then' >> .hooks/pre-commit.template; \
+		echo '  if [ -f "$$file" ] && ! clang-format --style=file "$$file" | diff -u "$$file" - >/dev/null; then' >> .hooks/pre-commit.template; \
 		echo '    FAILED_FILES="$$FAILED_FILES $$file"' >> .hooks/pre-commit.template; \
 		echo '  fi' >> .hooks/pre-commit.template; \
 		echo 'done' >> .hooks/pre-commit.template; \

@@ -32,15 +32,14 @@
  *
  * Thread-safety:
  * - Pure functions (siphash, siphash_key) are thread-safe.
- * - Global-key helpers are safe for repeated use after initialization;
- *   call siphash_set_key() once at startup to ensure thread-safety.
- * - The first call to siphash_with_global_key() may race with concurrent
- *   first calls (auto-initialization).
+ * - Global-key helpers are safe for repeated use after initialization; call
+ *   siphash_set_key() once at startup to avoid first-use races.
+ * - The first call to siphash_with_global_key() may race in highly concurrent
+ *   programs because it auto-initializes a global key lazily.
  *
  * Performance:
- * - ~1.3 cycles per byte on modern CPUs (e.g., x86-64, ARM64).
- * - No platform-specific optimizations in this userspace stub; NEON variants
- *   planned for Sprint 4.
+ * - Fast, constant-time per byte. No platform-specific optimizations enabled
+ *   in this repository; NEON variants are planned for Sprint 4.
  */
 
 #include <stddef.h>
@@ -77,11 +76,12 @@ uint64_t siphash_key(const void *data, size_t len, const uint8_t key[16]);
  * @brief Initialize a random 128-bit SipHash key into k0/k1.
  *
  * Attempts to read from a secure OS RNG (e.g., /dev/urandom). Falls back to
- * weaker randomness if unavailable.
+ * weaker randomness if unavailable or if the read is incomplete.
  *
  * @param k0 Out: low 64 bits of key.
  * @param k1 Out: high 64 bits of key.
- * @return 0 on strong randomness; -1 if a weaker fallback or error occurred.
+ * @return 0 on strong randomness; -1 if weaker fallback was used or an error
+ *         occurred (outputs are still set in both cases).
  */
 int siphash_init_random_key(uint64_t *k0, uint64_t *k1);
 

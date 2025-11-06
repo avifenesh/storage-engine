@@ -92,14 +92,13 @@ dispatch(const data_type_t type, const op_name_t name, const void *a,
 int
 main(void)
 {
-	printf("🎯 Function Pointer Dispatcher Demo - Issue #5\n");
-	printf("===============================================\n\n");
-
-	/* Declarations moved before statements for C90 compliance */
 	float32_t a, b, result_f32;
 	aligned_vec_t vec_a, vec_b, result_vec;
 	float32_t dot_result;
 	float32_t expected;
+
+	printf("🎯 Function Pointer Dispatcher Demo - Issue #5\n");
+	printf("===============================================\n\n");
 
 	/* Test 1: Float32 operations */
 	printf("🔢 Testing float32 operations:\n");
