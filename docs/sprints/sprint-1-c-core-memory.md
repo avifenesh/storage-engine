@@ -176,7 +176,7 @@ CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare \
 - Uninitialized memory: Always initialize allocated memory
 
 ## Next Sprint Preview
-Sprint 2 will focus on system programming with IOCTL interfaces and character device drivers, building on the memory management foundation established here.
+Sprint 2 will focus on a userspace hash table (collision resolution, resizing, and basic concurrency), establishing a measurable baseline.
 
 ## Summary
 This sprint established the critical memory management fundamentals needed for high-performance storage engine development. The hands-on exercises with pointers, dynamic memory, alignment, and function dispatchers provide the essential building blocks for implementing efficient storage engines on ARM64 systems.

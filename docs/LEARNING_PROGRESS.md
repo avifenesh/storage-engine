@@ -1,40 +1,33 @@
-# Learning Progress - High-Performance Database Storage Engine
+# Learning Progress — Columnar Database Engine
 
 ## Project Overview
-Building a **high-performance database storage engine** to learn Linux kernel programming, database algorithms, distributed systems, and SIMD optimization on ARM64 platforms.
+Building a traditional, columnar database to learn storage, execution, SQL layers, and performance engineering on ARM64 platforms. Kernel integration is optional and strictly profile‑gated.
 
-**Focused Goal**: Master systems programming through a realistic project that combines multiple storage engines, kernel development, and production-grade features.
+**Focused Goal**: Master storage, vectorized execution, simple SQL, and performance engineering through a pragmatic, userspace‑first project.
 
-## 🎯 Project Scope (Comprehensive Storage Engine)
-- **Multiple Storage Engines**: Hash tables, B+ trees, LSM trees
-- **Kernel Integration**: Character devices with IOCTL interfaces
-- **SIMD Optimization**: ARM NEON for database operations
-- **Distributed Systems**: Raft consensus and replication
-- **Production Features**: Monitoring, APIs, deployment
-- **Realistic Targets**: 10M+ key-value pairs, <1ms latency, 100K+ ops/sec
+## 🎯 Project Scope
+- Storage primitives (hash, B+ tree), page/buffer manager, WAL
+- Columnar layout with encodings and zone maps; vectorized execution
+- SQL subset: parser → optimizer → executor; EXPLAIN
+- Performance: SIMD, NUMA/hugepages, io_uring; p50/p99 reporting
 
 ## ⚠️ Safety Notice
-**Sprints 2-4 involve kernel programming which can crash your system.**
-- Always use a VM for kernel development
-- Keep backups of important data
-- Test kernel modules in isolated environments
-- Read the safety warnings in each sprint guide
-- Understand that kernel bugs can corrupt filesystems
+Kernel work is optional; when used, test only in a VM and keep modules small.
 
 ## 📊 Sprint Progress Summary
 
 | Sprint | Focus | Issues | Status | Details |
 |--------|-------|--------|--------|---------|
 | **Sprint 1** | C Core & Memory | #1-6 | ✅ **COMPLETE** (6/6) | Solid foundation established |
-| **Sprint 2** | Hash Storage Engine | #27-30 | 📋 Ready to Start | Hash tables, kernel device, SIMD hashing |
-| **Sprint 3** | B+ Tree Storage | #31-34 | 📋 Planned | Balanced trees, range queries, kernel integration |
-| **Sprint 4** | LSM Tree + SIMD | #35-37 | 📋 Planned | Write-optimized storage, ARM NEON optimization |
-| **Sprint 5** | Production Features | #38-41 | 📋 Planned | Distributed systems, APIs, monitoring |
+| **Sprint 2** | Hash Storage Engine | #27-30 | 📋 Ready | Userspace baseline, concurrency, metrics |
+| **Sprint 3** | B+ Tree Storage | #31-34 | 📋 Planned | Userspace with iterators & ranges |
+| **Sprint 4** | Page/Buffer Manager | #? | 📋 Planned | Page layout, buffer & eviction |
+| **Sprint 5** | WAL & Recovery | #? | 📋 Planned | WAL, checkpoints, crash replay |
 
 ## 🎉 Current Status
 **Sprint 1 COMPLETE!** All 6 foundational issues successfully implemented ✅
 
-**Ready for Sprint 2**: Text Processing Foundations
+**Ready for Sprint 2**: Hash Table (Userspace) Baseline
 
 ## ✅ Completed Work (Sprint 1)
 1. **Issue #1**: Pointer operations (`print_address.c`) ✅
@@ -45,35 +38,22 @@ Building a **high-performance database storage engine** to learn Linux kernel pr
 6. **Issue #6**: Makefile with GDB integration and comprehensive build system ✅
 
 ## 🚀 Next Steps (Sprint 2)
-1. **Issue #27**: Implement text tokenizer with normalization
-2. **Issue #28**: Build inverted index data structure
-3. **Issue #29**: Implement TF-IDF scoring algorithm
-4. **Issue #30**: Create document storage system
+1. **Issue #27**: Implement userspace hash table with resize and stats
+2. **Issue #28**: Add concurrency (striping) and metrics export
+3. **Issue #29**: Prepare SIMD plan for hashing/compares (design)
+4. **Issue #30**: Build tests and property harness; ASan/Valgrind clean
 
 ## 📚 Key Learning Areas
 
-### Sprint 2: Text Processing (Starting Now)
-- **Tokenization**: Split text into searchable terms
-- **Inverted Index**: Map terms to document locations
-- **TF-IDF**: Calculate document relevance scores
-- **Hash Tables**: Efficient term lookup structures
+### Sprint 2: Hash Table (Starting Now)
+- Linear probing vs chaining tradeoffs; resize policies; probe stats
+- Concurrency striping; memory overhead and load factors
 
-### Sprint 3: Kernel Programming (Upcoming)
-- **Character Devices**: Create /dev/textsearch
-- **IOCTL Design**: Define kernel-userspace protocol
-- **Kernel Memory**: Safe allocation and management
-- **Concurrency**: Spinlocks and atomic operations
+### Sprint 3: B+ Tree (Upcoming)
+- Node layout, splitting/merging; iterators; range scans
 
-### Sprint 4: SIMD Optimization (Future)
-- **ARM NEON**: Vector processing for strings
-- **Performance**: Measure and optimize hot paths
-- **Benchmarking**: Compare implementations
-
-### Sprint 5: Production Quality (Final)
-- **Rust Client**: Safe API wrapper
-- **Advanced Search**: Phrases, boolean, wildcards
-- **Testing**: Comprehensive test coverage
-- **Documentation**: Performance and deployment guides
+### Later: Vectorized Execution & SQL
+- Columnar encodings; vectorized predicates; parser, optimizer, executor
 
 ## 📈 Progress Metrics
 
@@ -84,36 +64,29 @@ Building a **high-performance database storage engine** to learn Linux kernel pr
 - ✅ Development environment configured
 
 ### In Progress
-- 🔄 Starting Sprint 2: Text Processing
-- 📖 Learning inverted index algorithms
-- 🛠️ Setting up text processing framework
+- 🔄 Starting Sprint 2: Hash (userspace) work
 
 ### Upcoming Milestones
-- [ ] Complete basic text search (Sprint 2)
-- [ ] Implement kernel module (Sprint 3)
-- [ ] Add SIMD optimizations (Sprint 4)
-- [ ] Deploy production features (Sprint 5)
+- [ ] Hash baseline and metrics (Sprint 2)
+- [ ] B+ tree with iterators (Sprint 3)
+- [ ] Page/buffer manager (Sprint 4)
+- [ ] WAL + recovery (Sprint 5)
 
 ## 🎯 Success Criteria
 
 ### Technical Goals
-- Index 100K documents efficiently
-- Sub-10ms search latency
-- 3x memory efficiency
-- 1000 QPS throughput
+- Publish p50/p99 for core ops
+- Meet hash and B+ targets; add WAL durability
 
 ### Learning Goals
-- Master kernel module development
-- Understand text search algorithms
-- Apply SIMD optimizations effectively
-- Build production-quality systems
+- Understand storage/execution internals
+- Apply SIMD/NUMA/io_uring when they add value
 
 ## 📚 Resources
-- **Main Kanban**: [TEXT-SEARCH-KANBAN.md](TEXT-SEARCH-KANBAN.md)
-- **Learning Resources**: [TEXT_SEARCH_RESOURCES.md](TEXT_SEARCH_RESOURCES.md)
+- **Main Kanban**: [STORAGE-ENGINE-KANBAN.md](STORAGE-ENGINE-KANBAN.md)
+- **Learning Resources**: [STORAGE_ENGINE_RESOURCES.md](STORAGE_ENGINE_RESOURCES.md)
 - **Performance Targets**: [PERFORMANCE_TARGETS.md](PERFORMANCE_TARGETS.md)
-- **GitHub Issues**: [Project Issues](https://github.com/[username]/kernel-text-search/issues)
 
 ---
 
-*Updated: July 2025 - Project refocused on achievable text search engine goals*
+*Last Updated: Nov 2025 — Columnar DB roadmap aligned*

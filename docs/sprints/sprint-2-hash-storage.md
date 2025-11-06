@@ -1,20 +1,19 @@
-# Sprint 2: Hash Table Storage Engine
+# Sprint 2: Hash Table Storage Engine (Userspace)
 
 ## Overview
-Build a high-performance kernel-space hash table storage engine with ARM NEON optimization. Create `/dev/storage-hash` character device for database operations.
+Build a correct, measurable userspace hash table with linear probing (or chaining), dynamic resizing, and basic concurrency. Establish a throughput/latency baseline and probe statistics to inform later design. Kernel integration is optional and not part of this sprint.
 
-**Duration**: 4 weeks  
-**Prerequisites**: Completed Sprint 1 (C fundamentals)
+**Duration**: 2–3 weeks  
+**Prerequisites**: Sprint 1 (C fundamentals)
 
 ---
 
 ## 🎯 Learning Objectives
 
-1. **Master hash table algorithms** - Implement collision resolution and dynamic resizing
-2. **Build kernel character devices** - Create `/dev/storage-hash` with IOCTL interface
-3. **Optimize with ARM NEON** - Use SIMD instructions for hash functions and key comparison
-4. **Design storage operations** - Efficient put/get/delete with memory management
-5. **Handle concurrency** - Thread-safe operations with proper locking
+1. Implement collision resolution and dynamic resizing (measure load factor and probe length)
+2. Add basic concurrency (global lock → striped locks) and per‑stripe stats
+3. Produce a baseline of p50/p99 latency and ops/s; export probe-length histograms
+4. Prepare for future SIMD hashing/comparison by separating hot loops
 
 Tip: Start with a simple, correct userspace implementation, then port to kernel space. Add SIMD and concurrency last.
 
@@ -22,196 +21,55 @@ Tip: Start with a simple, correct userspace implementation, then port to kernel 
 
 ## 📋 Sprint Issues
 
-### Issue #27: Implement Hash Table with Collision Resolution (Prototype ➜ Kernel)
-**File**: `sprint-2-hash-storage/hash_engine.c`
+### Issue #27: Implement Hash Table with Collision Resolution (Userspace)
 
 **Requirements**:
 - Implement either linear probing or chaining (pick one to start)
-- Dynamic resizing at 75% load factor
-- Atomic counters for statistics
-- Proper memory management with kmalloc/kfree
+- Dynamic resizing around ~0.7–0.75 load factor
+- Counters for items and approximate memory
+- Userspace allocation; kernel is out of scope here
 
-**Example Interface**:
-```c
-struct hash_engine {
-    struct hash_bucket *buckets;
-    uint32_t bucket_count;
-    spinlock_t engine_lock;
-    atomic_t item_count;
-    atomic_t total_memory;
-};
-
-struct hash_entry {
-    void *key;
-    size_t key_len;
-    void *value;
-    size_t value_len;
-    struct hash_entry *next;
-};
-
-// Core operations (userspace first, then gate kernel-only code under __KERNEL__)
-int hash_put(const void *key, size_t key_len, const void *value, size_t value_len);
-int hash_get(const void *key, size_t key_len, void **value, size_t *value_len);
-int hash_delete(const void *key, size_t key_len);
-int hash_get_stats(uint32_t *item_count, uint32_t *bucket_count, uint32_t *memory_usage);
-```
+Note: Keep public headers under `include/storage/` and implementation in `src/storage/hash/`. Avoid kernel specifics here.
 
 **Success Criteria**:
-- Handle 10,000 concurrent operations without corruption
-- O(1) average lookup time
-- Memory usage <150% of raw data size
-- Collision rate <10% with good hash function
+- Property tests pass (100k random ops against oracle)
+- Probe p99 ≤ 8 at ~0.7 load (linear probing); or average chain ≤ 1.5 (chaining)
+- Memory overhead ≤ 150% of raw payload at target load
 
 Lab Steps:
-- Step 1: Implement a userspace hash table with linear probing (no locks). Add simple tests in `sprint-2-hash-storage/tests/hash_tests.c`.
-- Step 2: Add resizing and verify load factor thresholds by printing stats every 1,000 inserts.
-- Step 3: Add pthread-based concurrent put/get tests; observe race conditions; then add fine-grained bucket locks or a global lock.
-- Step 4: Port to kernel by replacing malloc/free with kmalloc/kfree and using spinlocks/atomics. Keep the userspace version intact for benchmarking.
+- Step 1: Implement userspace hash table (no locks). Add tests in `tests/`.
+- Step 2: Add resizing; export load factor and probe histogram.
+- Step 3: Add concurrency: global lock → striped locks; measure scaling.
+- Step 4: Write a short retrospective: findings, bottlenecks, next steps.
 
 ---
 
-### Issue #28: Build Character Device with IOCTL Interface
-**File**: `sprint-2-hash-storage/hash_device.c`
-
-**Requirements**:
-- Character device `/dev/storage-hash`
-- IOCTL commands for PUT/GET/DELETE/STATS
-- Safe user-kernel data transfer
-- Proper error handling and validation
-
-**IOCTL Interface**:
-```c
-#define HASH_IOC_MAGIC 'H'
-#define HASH_IOC_PUT    _IOW(HASH_IOC_MAGIC, 1, struct hash_operation)
-#define HASH_IOC_GET    _IOWR(HASH_IOC_MAGIC, 2, struct hash_operation)
-#define HASH_IOC_DELETE _IOW(HASH_IOC_MAGIC, 3, struct hash_operation)
-#define HASH_IOC_STATS  _IOR(HASH_IOC_MAGIC, 4, struct hash_stats)
-
-struct hash_operation {
-    void __user *key;
-    size_t key_len;
-    void __user *value;
-    size_t value_len;
-};
-
-struct hash_stats {
-    uint32_t item_count;
-    uint32_t bucket_count;
-    uint32_t memory_usage;
-};
-```
-
-**Success Criteria**:
-- All IOCTL operations work correctly
-- No kernel panics with malformed input  
-- Proper user space pointer validation
-- Clean module load/unload
-
-Checkpoint Demo:
-- Write a tiny userspace program that opens `/dev/storage-hash` and performs PUT/GET/DELETE using your IOCTLs. Print results and error codes.
+### Issue #28: Export Hash Metrics and Benchmarks
+Produce a simple benchmark harness that records ops/s, p50/p99, and probe stats (or chain length). Export to `metrics.json`.
 
 ---
 
-### Issue #29: ARM NEON Hash Function Optimization
-**File**: `sprint-2-hash-storage/neon_hash.c`
-
-**Requirements**:
-- SIMD-optimized hash functions
-- Vectorized key comparison
-- Batch processing capabilities
-- Fallback for non-ARM64 systems
-
-**NEON Hash Implementation**:
-```c
-// SIMD hash function processing 16 bytes at once
-uint32_t neon_hash_function(const void *key, size_t len);
-
-// Batch hash multiple keys simultaneously  
-void neon_hash_batch(const void **keys, size_t *key_lens, 
-                     uint32_t *hashes, size_t count);
-
-// SIMD key comparison
-int neon_key_compare(const void *key1, size_t key1_len, 
-                     const void *key2, size_t key2_len);
-
-// Hash quality measurement
-uint32_t neon_hash_distribution_test(const void **keys, size_t *key_lens,
-                                     size_t key_count, uint32_t bucket_count);
-```
-
-**Success Criteria**:
-- 3x speedup over scalar hash functions
-- Good distribution with low collision rate
-- Handles variable-length keys correctly
-- Performance scales with ARM NEON capabilities
-
-Study Targets:
-- Inspect compiler-generated assembly with `make asm-learn` and compare scalar vs NEON versions.
-- Align hot buffers to 16 bytes; measure impact.
+### Issue #29: Prepare for SIMD Paths (Design)
+Identify hot loops (hashing, compares). Document a plan for runtime dispatch to SIMD vs scalar without changing public APIs.
 
 ---
 
-### Issue #30: Create Comprehensive Test Suite
-**File**: `sprint-2-hash-storage/tests/hash_tests.c`
+### Issue #30: Tests and Memory Safety
+Unit/property tests for put/get/delete under random workloads; multi‑thread smoke tests; ASan/Valgrind clean.
 
-**Requirements**:
-- Unit tests for all hash operations
-- Performance benchmarks
-- Stress testing with concurrent access
-- Memory leak detection
-
-**Test Categories**:
-```c
-// Basic operations
-int test_basic_operations(void);
-
-// Error conditions  
-int test_error_conditions(void);
-
-// Performance measurement
-int test_performance(void);
-
-// Concurrent access
-int test_concurrent_operations(void);
-```
-
-**Performance Targets (Raspberry Pi 4/5)**:
-- Hash reads: >10,000 operations/second
-- Hash writes: >3,000 operations/second
-- Memory usage: <150% of raw data size
-- Collision rate: <10% with uniform keys
+Targets (Raspberry Pi 4/5; scale relatively):
+- Reads: ≥ 10k ops/s (single‑thread), ≥ 50k ops/s (8 threads)
+- Writes: ≥ 3k ops/s (single‑thread), ≥ 15k ops/s (8 threads)
+- Memory overhead: ≤ 150% of raw payload at ~0.7 load
 
 ---
 
 ## 🛠️ Implementation Guide
 
-### Week 1: Core Hash Engine
-1. Implement basic hash table structure
-2. Add collision resolution with chaining
-3. Create put/get/delete operations
-4. Add dynamic resizing logic
-5. Test with single-threaded access
+Week 1: Core engine and resize; initial tests and probe stats  
+Week 2: Concurrency (striping), metrics export, benchmarks, retrospective
 
-### Week 2: Character Device Interface
-1. Create kernel module skeleton
-2. Implement character device registration
-3. Add IOCTL command handlers
-4. Implement user-kernel data transfer
-5. Test with simple user program
-
-### Week 3: ARM NEON Optimization
-1. Study ARM NEON intrinsics
-2. Implement SIMD hash functions
-3. Add vectorized key comparison
-4. Create batch processing functions
-5. Benchmark against scalar implementation
-
-### Week 4: Testing and Integration
-1. Build comprehensive test suite
-2. Add performance benchmarks
-3. Test concurrent access patterns
-4. Fix bugs and optimize performance
-5. Document API and usage
+Remove stretch topics from this sprint; SIMD and further optimization are in later sprints.
 
 Learning Checklist:
 - Can explain trade-offs of linear probing vs chaining
@@ -222,15 +80,13 @@ Learning Checklist:
 
 ## 🔒 What’s Provided vs What You Build
 
-- Provided (scaffolding only):
-  - Minimal userspace stubs in `sprint-2-hash-storage/` (no working hash logic)
-  - Placeholder test harness file in `tests/` with TODOs
-  - Make targets to build/run your tests
-- You Build (for learning):
-  - Hash table algorithm (probing/chaining), resizing, and stats
-  - Correctness under concurrency (locking/atomics)
-  - Kernel character device and IOCTL handlers
-  - NEON optimizations and measurable benchmarks
+- Provided:
+  - Build system, skeleton headers and layout (`include/`, `src/`, `tests/`)
+  - Example microbench target under `bench/`
+- You Build:
+  - Hash table algorithm (probing/chaining), resizing, stats
+  - Correctness under concurrency (striped locks)
+  - Benchmarks and measurements
 
 No solutions are provided; only QA scaffolding to validate your own implementation.
 
@@ -279,66 +135,13 @@ Use these as measurable finish lines for this sprint. Adjust for your hardware, 
 ## 📊 Testing Strategy
 
 ### Unit Tests
-```c
-// test basic hash operations
-void test_basic_hash_ops() {
-    // Test PUT operation
-    int result = hash_put("key1", 4, "value1", 6);
-    assert(result == 0);
-    
-    // Test GET operation
-    void *value;
-    size_t value_len;
-    result = hash_get("key1", 4, &value, &value_len);
-    assert(result == 0);
-    assert(value_len == 6);
-    assert(memcmp(value, "value1", 6) == 0);
-    
-    // Test DELETE operation
-    result = hash_delete("key1", 4);
-    assert(result == 0);
-    
-    // Verify deletion
-    result = hash_get("key1", 4, &value, &value_len);
-    assert(result == -ENOENT);
-}
-```
+Keep unit/property tests small and deterministic; put binaries under `tests/`.
 
 ### Performance Tests
-```bash
-# Load kernel module
-sudo make load
-
-# Run performance benchmarks
-make test
-
-# Check statistics
-dmesg | grep "hash_engine"
-
-# Unload module
-sudo make unload
-```
+Use `make bench` or `make run-bench` to build and run local microbenchmarks.
 
 ### SIMD Verification
-```c
-// Compare SIMD vs scalar results
-void verify_simd_correctness() {
-    const char *test_keys[] = {"test1", "test2", "test3"};
-    size_t key_lens[] = {5, 5, 5};
-    uint32_t scalar_hashes[3], neon_hashes[3];
-    
-    // Compute with both methods
-    for (int i = 0; i < 3; i++) {
-        scalar_hashes[i] = scalar_hash_function(test_keys[i], key_lens[i]);
-    }
-    neon_hash_batch((const void**)test_keys, key_lens, neon_hashes, 3);
-    
-    // Results should match
-    for (int i = 0; i < 3; i++) {
-        assert(scalar_hashes[i] == neon_hashes[i]);
-    }
-}
-```
+Plan only; actual SIMD work is deferred to later sprints.
 
 ---
 
@@ -347,14 +150,8 @@ void verify_simd_correctness() {
 ### Issue: Hash table performance degrades
 **Solution**: Monitor load factor, implement dynamic resizing, tune hash function
 
-### Issue: IOCTL operations fail
-**Solution**: Check user pointer validation, verify IOCTL command numbers, test permissions
-
-### Issue: ARM NEON code crashes
-**Solution**: Check kernel_neon_begin/end pairs, verify data alignment, handle edge cases
-
-### Issue: Memory leaks in kernel
-**Solution**: Use kmemleak, match kmalloc/kfree calls, implement proper cleanup
+### Issue: High collision rate
+**Solution**: Switch to a stronger hash, lower load factor, or adopt robin‑hood probing.
 
 ---
 
@@ -365,10 +162,10 @@ void verify_simd_correctness() {
 - [Collision Resolution Strategies](https://en.wikipedia.org/wiki/Hash_table#Collision_resolution)
 - [Performance Analysis](https://github.com/attractivechaos/klib)
 
-### Kernel Programming
-- [Linux Device Drivers](https://lwn.net/Kernel/LDD3/) - Character devices
-- [Kernel Module Programming Guide](https://sysprog21.github.io/lkmpg/)
-- [IOCTL Tutorial](https://embetronicx.com/tutorials/linux/device-drivers/ioctl-tutorial-in-linux/)
+### Optional (Later) SIMD Reading
+- [ARM NEON Programmer's Guide](https://developer.arm.com/documentation/102474/latest/)
+- [NEON Intrinsics Reference](https://arm-software.github.io/acle/neon_intrinsics/advsimd.html)
+- [SIMD Hash Functions](https://lemire.me/blog/2021/01/29/arm-neon-programming-quick-reference/)
 
 ### ARM NEON Optimization
 - [ARM NEON Programmer's Guide](https://developer.arm.com/documentation/102474/latest/)
@@ -381,24 +178,16 @@ void verify_simd_correctness() {
 
 By the end of Sprint 2, you should have:
 
-1. **Working hash engine** with collision resolution
-2. **Character device** `/dev/storage-hash` with IOCTL interface
-3. **ARM NEON optimization** for hash operations
-4. **Comprehensive tests** with performance benchmarks
-5. **Memory-safe implementation** with no leaks
-6. **Documentation** with API reference and examples
-7. **Performance targets met** on Raspberry Pi hardware
-8. **Clean code** following Linux kernel style
+1. Working userspace hash engine with collision resolution
+2. Comprehensive tests with property checks and microbenchmarks
+3. Memory‑safe implementation (ASan/Valgrind clean)
+4. Documentation with design notes and measurements
 
 ---
 
 ## 🚀 Next Sprint Preview
 
-Sprint 3 will build a B+ tree storage engine:
-- Create `/dev/storage-btree` for sorted data storage
-- Implement B+ tree algorithms in kernel space
-- Add range query support and tree traversal
-- Optimize node operations with ARM NEON
+Sprint 3 will build a userspace B+ tree storage engine with range scans and iterators.
 
 Your hash table foundation will inform the design patterns for more complex storage engines!
 

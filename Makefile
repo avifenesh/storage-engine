@@ -29,21 +29,25 @@ BINARY_SAFE_CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compa
 					 -g -gdwarf-4 -Werror=date-time -Werror=incompatible-pointer-types \
 					 -Werror=designated-init -Werror=implicit-function-declaration
 
-# Automatically find all .c files in sprint folders
-# Aligned with current repository structure
-SPRINT_DIRS = sprint-1-core-memory \
-		   sprint-2-hash-storage \
-		   sprint-3-btree-storage \
-		   sprint-4-simd-optimization \
-		   sprint-5-production-features
-SOURCES = $(wildcard $(addsuffix /*.c,$(SPRINT_DIRS)))
-HEADERS = $(wildcard $(addsuffix /*.h,$(SPRINT_DIRS)))
-FORMAT_FILES = $(SOURCES) $(HEADERS)
-ASSEMBLY = $(SOURCES:.c=.s)
-OBJECTS = $(SOURCES:.c=.o)
-TARGETS = $(SOURCES:.c=)
-TEST_SOURCES = $(wildcard $(addsuffix /tests/*.c,$(SPRINT_DIRS)))
+# Include path
+INCFLAGS = -Iinclude
+
+# Discover sources under src/ only (exclude kernel code)
+SRC_SOURCES := $(shell find src -type f -name '*.c' ! -path 'src/kernel/*' 2>/dev/null)
+SOURCES := $(SRC_SOURCES)
+SRC_HEADERS := $(shell find include -type f -name '*.h' 2>/dev/null)
+FORMAT_FILES = $(SRC_SOURCES) $(SRC_HEADERS)
+ASSEMBLY = $(SRC_SOURCES:.c=.s)
+OBJECTS = $(SRC_SOURCES:.c=.o)
+TARGETS = $(SRC_SOURCES:.c=)
+
+# Discover tests under tests/
+TEST_SOURCES := $(shell find tests -type f -name '*.c' 2>/dev/null)
 TEST_BINARIES = $(TEST_SOURCES:%.c=build/tests/%.out)
+
+# Benchmarks
+BENCH_SOURCES := $(shell find bench -type f -name '*.c' 2>/dev/null)
+BENCH_BINARIES = $(patsubst bench/%.c,build/bench/%, $(BENCH_SOURCES))
 
 # Default target - generate assembly files
 .PHONY: all asm clean help tests run-tests
@@ -57,25 +61,40 @@ asm: $(ASSEMBLY)
 # Rule to generate assembly from C source
 %.s: %.c
 	@echo "🔧 Generating assembly for $<..."
-	$(CC) $(CFLAGS) $(ASMFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(INCFLAGS) $(ASMFLAGS) -o $@ $<
 
 # Compile executables (optional)
 %: %.c
 	@echo "🔨 Compiling executable $@..."
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(INCFLAGS) -o $@ $<
 
 # Object files rule (optional)
 %.o: %.c
 	@echo "⚙️  Compiling object file $@..."
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCFLAGS) -c -o $@ $<
 
 # Build test binaries into build/tests/...
 build/tests/%.out: %.c
 	@echo "🧪 Building test $<..."
 	@mkdir -p $(dir $@)
-	@sprint_dir=$$(dirname $< | sed 's#/tests$$##'); \
-	core_sources=$$(find $$sprint_dir -maxdepth 1 -name '*.c' -print | tr '\n' ' '); \
-	$(CC) $(BINARY_SAFE_CFLAGS) -o $@ $$core_sources $<
+	$(CC) $(BINARY_SAFE_CFLAGS) $(INCFLAGS) -o $@ $(SRC_SOURCES) $<
+
+# Build benchmarks into build/bench/...
+build/bench/%: bench/%.c
+	@echo "🏁 Building benchmark $<..."
+	@mkdir -p $(dir $@)
+	$(CC) $(BINARY_SAFE_CFLAGS) $(INCFLAGS) -O2 -o $@ $(SRC_SOURCES) $<
+
+.PHONY: bench run-bench
+bench: $(BENCH_BINARIES)
+	@echo "✅ Built benchmarks: $(BENCH_BINARIES)"
+
+run-bench: bench
+	@echo "🚀 Running benchmarks..."
+	@for b in $(BENCH_BINARIES); do \
+		echo "▶ $$b"; \
+		timeout 60s $$b || true; \
+	done
 
 tests: $(TEST_BINARIES)
 	@echo "✅ Built test binaries: $(TEST_BINARIES)"
@@ -132,11 +151,11 @@ asm-learn: clean
 		echo "=========================================="; \
 		\
 		echo "🔍 Checking for unused variables/functions..."; \
-		$(CC) $(CFLAGS) -Wunused -Wunreachable-code -c $$file -o /dev/null 2>&1 | grep -E "(unused|unreachable)" || echo "  ✅ No unused code detected"; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -Wunused -Wunreachable-code -c $$file -o /dev/null 2>&1 | grep -E "(unused|unreachable)" || echo "  ✅ No unused code detected"; \
 		\
 		echo "🔍 Dead code elimination analysis (O0 vs O2)..."; \
-		$(CC) $(filter-out -O2,$(CFLAGS)) -O0 -S -o $$base.O0.tmp $$file; \
-		$(CC) $(CFLAGS) -S -o $$base.O2.tmp $$file; \
+		$(CC) $(filter-out -O2,$(CFLAGS)) $(INCFLAGS) -O0 -S -o $$base.O0.tmp $$file; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -S -o $$base.O2.tmp $$file; \
 		wc -l $$base.O0.tmp $$base.O2.tmp | head -2 | awk '{printf "  %s: %s lines\n", $$2, $$1}'; \
 		\
 		echo "🔍 Function inlining analysis..."; \
@@ -154,7 +173,7 @@ asm-learn: clean
 		echo "  Registers used O0: $$o0_regs, O2: $$o2_regs"; \
 		\
 		echo "🎯 Generating clean learning assembly..."; \
-		$(CC) $(CFLAGS) -S -fverbose-asm -o $$base.learn.s $$file; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -S -fverbose-asm -o $$base.learn.s $$file; \
 		sed -i '/^[[:space:]]*\.cfi_/d; /^[[:space:]]*\.file/d; /^[[:space:]]*\.ident/d; /^[[:space:]]*\.section.*note/d; /^[[:space:]]*\.size/d; /^[[:space:]]*\.type/d' $$base.learn.s; \
 		echo "  📝 Generated $$base.learn.s with educational annotations"; \
 		\
@@ -175,16 +194,16 @@ asm-optimize-report: clean
 		echo "============================================="; \
 		\
 		echo "📋 Optimization passes enabled:"; \
-		$(CC) $(CFLAGS) -Q --help=optimizers | grep enabled | head -10; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -Q --help=optimizers | grep enabled | head -10; \
 		\
 		echo ""; \
 		echo "🔬 Specific optimizations performed:"; \
-		$(CC) $(CFLAGS) -fopt-info-vec -fopt-info-inline -fopt-info-loop -fopt-info-ipa -c $$file -o /dev/null 2>&1 || echo "  No specific optimizations reported"; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -fopt-info-vec -fopt-info-inline -fopt-info-loop -fopt-info-ipa -c $$file -o /dev/null 2>&1 || echo "  No specific optimizations reported"; \
 		\
 		echo ""; \
 		echo "📊 Generating side-by-side assembly comparison..."; \
-		$(CC) $(filter-out -O2,$(CFLAGS)) -O0 -S -o $$base.O0.asm $$file; \
-		$(CC) $(CFLAGS) -S -o $$base.O2.asm $$file; \
+		$(CC) $(filter-out -O2,$(CFLAGS)) $(INCFLAGS) -O0 -S -o $$base.O0.asm $$file; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -S -o $$base.O2.asm $$file; \
 		echo "  Created $$base.O0.asm and $$base.O2.asm for comparison"; \
 		diff -u $$base.O0.asm $$base.O2.asm > $$base.optimization.diff || true; \
 		echo "  Created $$base.optimization.diff showing exact changes"; \
@@ -240,11 +259,11 @@ asm-compare:
 		echo "⚖️  Comparing $$file: O$(LOW) vs O$(HIGH)"; \
 		echo "========================================"; \
 		echo "🔨 Compiling assembly with kernel flags..."; \
-		$(CC) $(CFLAGS) -O$(LOW) -S -o $$base.O$(LOW).asm $$file; \
-		$(CC) $(CFLAGS) -O$(HIGH) -S -o $$base.O$(HIGH).asm $$file; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -O$(LOW) -S -o $$base.O$(LOW).asm $$file; \
+		$(CC) $(CFLAGS) $(INCFLAGS) -O$(HIGH) -S -o $$base.O$(HIGH).asm $$file; \
 		echo "🔨 Compiling binaries with compatible flags..."; \
-		$(CC) $(BINARY_SAFE_CFLAGS) -O$(LOW) -o $$base.O$(LOW).bin $$file 2>/dev/null || echo "  ⚠️  O$(LOW) binary compilation failed"; \
-		$(CC) $(BINARY_SAFE_CFLAGS) -O$(HIGH) -o $$base.O$(HIGH).bin $$file 2>/dev/null || echo "  ⚠️  O$(HIGH) binary compilation failed"; \
+		$(CC) $(BINARY_SAFE_CFLAGS) $(INCFLAGS) -O$(LOW) -o $$base.O$(LOW).bin $$file 2>/dev/null || echo "  ⚠️  O$(LOW) binary compilation failed"; \
+		$(CC) $(BINARY_SAFE_CFLAGS) $(INCFLAGS) -O$(HIGH) -o $$base.O$(HIGH).bin $$file 2>/dev/null || echo "  ⚠️  O$(HIGH) binary compilation failed"; \
 		echo "📊 Generating comparison report..."; \
 		diff -u $$base.O$(LOW).asm $$base.O$(HIGH).asm > $$base.O$(LOW)-vs-O$(HIGH).diff || true; \
 		echo "  Created $$base.O$(LOW)-vs-O$(HIGH).diff"; \
@@ -423,12 +442,12 @@ asan:
 	for file in $(SOURCES); do \
 		base=$$(basename $$file .c); \
 		echo "Compiling $$file with ASan..."; \
-		if $(CC) $(MEMORY_SAFE_CFLAGS) \
+		if $(CC) $(MEMORY_SAFE_CFLAGS) $(INCFLAGS) \
 			-fsanitize=address -fno-omit-frame-pointer -O1 \
 			-o build/asan/$$base $$file 2>/dev/null; then \
 			echo "✅ Successfully compiled $$file as executable"; \
 			executable_count=$$((executable_count + 1)); \
-		elif $(CC) $(MEMORY_SAFE_CFLAGS) \
+		elif $(CC) $(MEMORY_SAFE_CFLAGS) $(INCFLAGS) \
 			-fsanitize=address -fno-omit-frame-pointer -O1 \
 			-c -o build/asan/$$base.o $$file 2>&1; then \
 			echo "✅ Successfully compiled $$file as object file (no main function)"; \
@@ -615,8 +634,8 @@ help:
 	@echo "  asm-learn    - Generate educational assembly analysis (shows optimizations, unused code)"
 	@echo "  asm-optimize-report - Detailed optimization analysis with exact changes"
 	@echo "  asm-compare LOW=X HIGH=Y - Compare any two optimization levels"
-	@echo "  tests        - Build all sprint test binaries under build/tests"
-	@echo "  run-tests    - Build and execute all sprint test binaries"
+	@echo "  tests        - Build all tests under build/tests"
+	@echo "  run-tests    - Build and execute all tests"
 	@echo "  executables  - Build executable files"
 	@echo "  clean        - Remove all build artifacts"
 	@echo ""
