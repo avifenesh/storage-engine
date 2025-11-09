@@ -3,8 +3,8 @@
  * @brief Public API for a SipHash-based hash table with linear probing.
  */
 
-#ifndef HASH_ENGINE_H
-#define HASH_ENGINE_H
+#ifndef STORAGE_HASH_ENGINE_H
+#define STORAGE_HASH_ENGINE_H
 
 #include <pthread.h>
 #include <stddef.h>
@@ -48,4 +48,4 @@ int hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
 			  uint32_t *bucket_count, uint32_t *memory_usage);
 int needs_resize(struct hash_engine *engine);
 
-#endif
+#endif /* STORAGE_HASH_ENGINE_H */

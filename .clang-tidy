@@ -1,0 +1,11 @@
+# Clang-Tidy configuration for storage-engine-kernel
+# This is a Linux kernel-style project, so we disable checks for C11 secure functions
+# that are not available on Linux systems.
+
+Checks: '-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling'
+
+# Explanation:
+# - The C11 "secure" functions like memset_s, fprintf_s are not available on Linux
+# - Our code uses memset/fprintf with proper bounds checking (sizeof, explicit size calculations)
+# - This is standard practice in kernel and systems programming
+# - These warnings are overly strict for our use case

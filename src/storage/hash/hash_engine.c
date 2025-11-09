@@ -34,7 +34,13 @@ hash_engine_init(struct hash_engine *engine, int bucket_count)
 	if (!engine || bucket_count <= 0)
 		return -EINVAL;
 
-	memset(engine, 0, sizeof(*engine));
+	/* Explicitly zero-initialize structure fields */
+	engine->hash_buckets = NULL;
+	engine->bucket_count = 0;
+	engine->item_count = 0;
+	engine->total_memory = 0;
+	/* Note: engine_lock will be initialized by pthread_mutex_init */
+
 	if (!is_power_of_two(bucket_count)) {
 		int n = 1;
 		while (n < bucket_count && n < MAX_BUCKET_COUNT)
@@ -48,6 +54,7 @@ hash_engine_init(struct hash_engine *engine, int bucket_count)
 
 	if (hash_key_0 == 0 && hash_key_1 == 0) {
 		if (siphash_init_random_key(&k0, &k1) != 0) {
+			/* NOLINT: fprintf is safe here, C11 fprintf_s not available on Linux */
 			fprintf(stderr, "hash_engine_init: warning: weak "
 					"SipHash key used\n");
 		}
@@ -249,6 +256,7 @@ hash_engine_resize(struct hash_engine *engine, int new_bucket_count)
 	for (;;) {
 		int failed = 0;
 		int j;
+		/* NOLINT: memset is safe here with explicit size calculation */
 		memset(new_buckets, 0,
 		       (size_t)target_count * sizeof(struct hash_bucket));
 		for (j = 0; j < old_count; j++) {

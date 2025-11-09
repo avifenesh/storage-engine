@@ -5,7 +5,7 @@
     "github.copilot.chat.generateTests.codeLens": true,
     "github.copilot.chat.languageContext.fix.typescript.enabled": false,
     "github.copilot.chat.newWorkspaceCreation.enabled": false,
-    "editor.defaultFormatter": "xaver.clang-format",
+    "editor.defaultFormatter": "ms-vscode.cpptools",
     "editor.defaultFoldingRangeProvider": "ms-vscode.cpptools",
     "files.associations": {
         "*.toml": "toml",
@@ -17,7 +17,7 @@
     "vim.vimrc.enable": true,
     "vim.vimrc.path": "$HOME/.vimrc",
     "[c]": {
-        "editor.defaultFormatter": "xaver.clang-format"
+        "editor.defaultFormatter": "ms-vscode.cpptools"
     },
     "C_Cpp.clang_format_style": "file",
     "C_Cpp.clang_format_fallbackStyle": "GNU",
