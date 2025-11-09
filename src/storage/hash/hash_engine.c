@@ -54,7 +54,8 @@ hash_engine_init(struct hash_engine *engine, int bucket_count)
 
 	if (hash_key_0 == 0 && hash_key_1 == 0) {
 		if (siphash_init_random_key(&k0, &k1) != 0) {
-			/* NOLINT: fprintf is safe here, C11 fprintf_s not available on Linux */
+			/* NOLINT: fprintf is safe here, C11 fprintf_s not
+			 * available on Linux */
 			fprintf(stderr, "hash_engine_init: warning: weak "
 					"SipHash key used\n");
 		}
