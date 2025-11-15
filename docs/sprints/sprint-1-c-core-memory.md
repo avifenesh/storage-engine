@@ -180,3 +180,24 @@ Sprint 2 will focus on a userspace hash table (collision resolution, resizing, a
 
 ## Summary
 This sprint established the critical memory management fundamentals needed for high-performance storage engine development. The hands-on exercises with pointers, dynamic memory, alignment, and function dispatchers provide the essential building blocks for implementing efficient storage engines on ARM64 systems.
+
+## Additional Learning Resources
+
+- CMU systems courses (e.g., 15‑213/15‑513) — notes on memory, pointers, and the C abstract machine.
+- "The Linux Programming Interface" (Kerrisk) — chapters on process memory layout, virtual memory, and debugging.
+- "What Every Programmer Should Know About Memory" (Ulrich Drepper) — deep dive into caches and memory hierarchies.
+
+## Core Questions
+
+- How does C's abstract memory model differ from the underlying hardware, and why does that matter for correctness and performance?
+- What are the most common bugs involving pointers and dynamic allocation, and how can you systematically avoid them?
+- How do alignment and padding affect struct sizes and cache behavior on ARM64?
+- When should you prefer stack allocation, heap allocation, or static storage?
+- How do different compiler optimization levels (`-O0`, `-O2`, `-O3`) change the generated assembly for the same C code?
+
+## Experiments & Exercises
+
+- Use `sizeof` and `offsetof` to inspect layout and padding for several structs; record how field ordering changes layout.
+- Compile small pointer‑heavy programs with different `-O` levels and inspect the resulting assembly via `make asm`.
+- Intentionally introduce bugs such as double free, use‑after‑free, and out‑of‑bounds accesses in scratch code and observe how ASan and Valgrind report them.
+- Write tiny benchmarks that compare sequential vs random memory access and observe the impact of caches.

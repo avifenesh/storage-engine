@@ -1,13 +1,13 @@
-# Learning Progress — Columnar Database Engine
+# Learning Progress — Row-Store Database Engine
 
 ## Project Overview
-Building a traditional, columnar database to learn storage, execution, SQL layers, and performance engineering on ARM64 platforms. Kernel integration is optional and strictly profile‑gated.
+Building a traditional row‑store database engine (heap tables plus B+ tree/hash indexes) to learn storage, execution, SQL layers, concurrency, and performance engineering on ARM64 platforms. Kernel integration is optional and strictly profile‑gated.
 
-**Focused Goal**: Master storage, vectorized execution, simple SQL, and performance engineering through a pragmatic, userspace‑first project.
+**Focused Goal**: Master row‑store storage internals, SQL, concurrency, and performance engineering through a pragmatic, userspace‑first project, with columnar and vectorized features as optional later topics.
 
 ## 🎯 Project Scope
-- Storage primitives (hash, B+ tree), page/buffer manager, WAL
-- Columnar layout with encodings and zone maps; vectorized execution
+- Row‑store storage primitives: heap tables, hash/B+ tree indexes, page/buffer manager, WAL
+- Optional columnar projections with encodings and zone maps; vectorized execution
 - SQL subset: parser → optimizer → executor; EXPLAIN
 - Performance: SIMD, NUMA/hugepages, io_uring; p50/p99 reporting
 
@@ -52,8 +52,9 @@ Kernel work is optional; when used, test only in a VM and keep modules small.
 ### Sprint 3: B+ Tree (Upcoming)
 - Node layout, splitting/merging; iterators; range scans
 
-### Later: Vectorized Execution & SQL
-- Columnar encodings; vectorized predicates; parser, optimizer, executor
+### Later: SQL & Vectorized Execution
+- SQL grammar, AST, logical planning, and execution
+- Optional columnar encodings and vectorized predicates/operators for scan‑heavy workloads
 
 ## 📈 Progress Metrics
 
@@ -89,4 +90,4 @@ Kernel work is optional; when used, test only in a VM and keep modules small.
 
 ---
 
-*Last Updated: Nov 2025 — Columnar DB roadmap aligned*
+*Last Updated: Nov 2025 — Row‑store engine roadmap aligned*

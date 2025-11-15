@@ -1,7 +1,7 @@
-# 🎯 Performance Targets — Columnar Database
+# 🎯 Performance Targets — Row-Store Engine (with Optional Columnar Paths)
 
 ## Overview
-Realistic, measurable targets for a userspace columnar database built iteratively. Focus on correctness first; measure p50/p99 and publish simple, repeatable results.
+Realistic, measurable targets for a userspace row‑store database engine built iteratively, with optional columnar and vectorized features. Focus on correctness first; measure p50/p99 and publish simple, repeatable results.
 
 ## Core Metrics
 
@@ -36,9 +36,10 @@ Realistic, measurable targets for a userspace columnar database built iterativel
 ### Sprint 3: B+ Tree (Userspace)
 - Invariants validated; iterators and range scans; p50/p99 reported
 
-### Later Sprints (Page/Buffer, WAL, Vectorized Exec)
+### Later Sprints (Page/Buffer, WAL, SQL, Vectorized Exec)
 - Cache stats, flush latencies, recovery harness results
-- Vectorized scans show ≥ 3× over tuple‑at‑a‑time on simple predicates
+- SQL/query benchmarks over heap and index scans
+- Optional vectorized scans show ≥ 3× over tuple‑at‑a‑time on simple predicates
 
 ## Methodology
 - Warm up and measure steady state
@@ -58,5 +59,4 @@ Realistic, measurable targets for a userspace columnar database built iterativel
 - ✅ Clear performance documentation
 
 ### Notes
-Hash table lookups are O(1) on average; vectorized scans reduce per‑tuple overhead; WAL with fsync grouping can bound flush latency. Focus on clarity, measurement, and incremental improvement.
-
+Hash table lookups are O(1) on average; well‑designed heap and index scans provide predictable page‑level access patterns; optional vectorized scans reduce per‑tuple overhead; WAL with fsync grouping can bound flush latency. Focus on clarity, measurement, and incremental improvement.

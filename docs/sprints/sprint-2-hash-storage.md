@@ -162,12 +162,7 @@ Plan only; actual SIMD work is deferred to later sprints.
 - [Collision Resolution Strategies](https://en.wikipedia.org/wiki/Hash_table#Collision_resolution)
 - [Performance Analysis](https://github.com/attractivechaos/klib)
 
-### Optional (Later) SIMD Reading
-- [ARM NEON Programmer's Guide](https://developer.arm.com/documentation/102474/latest/)
-- [NEON Intrinsics Reference](https://arm-software.github.io/acle/neon_intrinsics/advsimd.html)
-- [SIMD Hash Functions](https://lemire.me/blog/2021/01/29/arm-neon-programming-quick-reference/)
-
-### ARM NEON Optimization
+### Optional (Later) SIMD Reading and ARM NEON Optimization
 - [ARM NEON Programmer's Guide](https://developer.arm.com/documentation/102474/latest/)
 - [NEON Intrinsics Reference](https://arm-software.github.io/acle/neon_intrinsics/advsimd.html)
 - [SIMD Hash Functions](https://lemire.me/blog/2021/01/29/arm-neon-programming-quick-reference/)
@@ -194,3 +189,19 @@ Your hash table foundation will inform the design patterns for more complex stor
 ---
 
 *Remember: Hash tables are the foundation of many storage systems. Master them well before moving to more complex data structures.*
+
+## Core Questions
+
+- What trade‑offs do linear probing, quadratic probing, and chaining make in terms of memory use, cache locality, and deletion complexity?
+- How does load factor influence average and worst‑case probe length, and what target range makes sense for your workloads?
+- How can you design resizing so that it does not cause unacceptable latency spikes, especially under concurrent access?
+- How can you structure your public API so that you can later plug in SIMD‑accelerated hashing or comparisons without breaking callers?
+- Where will hash tables show up in your eventual database engine (indexes, hash joins, caches, catalogs), and do they all need the same properties?
+
+## Experiments & Measurements
+
+- Benchmark different load factors and record probe length distributions (min/avg/p95/p99/max) for random key workloads.
+- Compare hash functions and bucket counts (powers of two vs primes) using both uniform and adversarial key patterns.
+- Measure throughput under 1, 2, 4, and 8 threads using different locking strategies (global lock vs striped locks) and note contention.
+- Track memory overhead by comparing total allocated bytes to raw key+value payload size at different load factors.
+- Run long random workloads mixing inserts, lookups, and deletes and observe clustering, performance degradation, and the effect of periodic resizing.

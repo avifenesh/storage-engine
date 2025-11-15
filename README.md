@@ -1,6 +1,6 @@
-# Columnar Database Engine — Learning Project
+# Row-Store Database Engine — Learning Project
 
-Userspace‑first learning project to build a traditional columnar database incrementally: storage (hash + B+ tree), page/buffer + WAL, vectorized execution, and a pragmatic SQL subset.
+Userspace‑first learning project to build a traditional row‑store database engine incrementally: storage (heap tables plus hash + B+ tree indexes), page/buffer + WAL, SQL subset, and optional columnar projections and vectorized execution as reach goals.
 
 ## Structure
 

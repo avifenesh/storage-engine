@@ -1,13 +1,22 @@
-# 📋 Columnar Database Engine – Project Kanban
+# 📋 Row-Store Database Engine – Project Kanban
 
 ## 🎯 Project Vision
-Build a traditional columnar database engine to master storage, execution, SQL, and performance engineering on ARM64. Kernel integration is optional and profile‑gated.
+Build a learning‑first row‑store database engine (heap tables plus B+ tree/hash indexes) to master storage, execution, SQL, concurrency, and performance engineering on ARM64. Kernel integration is optional and profile‑gated; columnar projections and vectorized execution are reach goals.
 
 **Realistic Goals**:
-- Userspace columnar DB with hash + B+tree indexes
-- Vectorized execution for scans, filters, joins and aggs
+- Userspace row‑store engine with heap tables and hash/B+ tree indexes
+- Solid iterator‑based execution over heap and indexes; optional vectorized paths later
 - WAL durability with crash recovery
 - Meaningful p50/p99 metrics and repeatable benchmarks
+
+## 🧭 Recommended Learning Order
+
+1. Foundations: Sprint 1 (C core & memory fundamentals).
+2. Core data structures: Sprint 2 (hash table) and Sprint 3 (B+ tree).
+3. Storage spine (row store): Sprint 4 (page format, slotted pages, buffer manager) and Sprint 5 (WAL & recovery).
+4. SQL & execution: Sprint 6 (SQL parser/AST), Sprint 7 (logical optimizer), Sprint 8 (cost model), Sprint 9 (joins, aggregation, sort).
+5. Transactions & concurrency: Sprint 10 (MVCC), Sprint 11 (locking & latching), Sprint 12 (concurrency & NUMA).
+6. Acceleration & reach: Sprint 13 (columnar layout), Sprint 14 (vectorized executor), Sprint 15 (SIMD & compression), Sprint 16 (io_uring I/O), Sprint 17 (observability & benchmarks).
 
 ---
 
@@ -104,10 +113,10 @@ Implement WAL, checkpoints, and crash recovery. Profile I/O (io_uring optional).
 - WAL: bounded flush latency; recover cleanly from injected crashes
 
 ### Learning Outcomes
-- ✅ Solid understanding of storage and execution internals
+- ✅ Solid understanding of storage, execution, and concurrency internals
 - ✅ Ability to measure and interpret p50/p99 metrics
 - ✅ Familiarity with SIMD and I/O techniques where they add value
 
 ---
 
-*Last Updated: Nov 2025 – Columnar DB roadmap aligned and de‑scoped*
+*Last Updated: Nov 2025 – Row‑store engine roadmap aligned*
