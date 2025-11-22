@@ -116,6 +116,78 @@ run-tests: tests
 	fi; \
 	exit $$status
 
+# Advanced test targets
+.PHONY: test-chaos test-failure-injection test-fuzz test-advanced
+
+# Chaos testing target
+test-chaos: build/tests/hash_chaos_test.out
+	@echo "🌪️  Running chaos tests..."
+	@timeout 120s ./build/tests/hash_chaos_test.out
+
+# Failure injection testing target
+test-failure-injection: build/tests/hash_failure_injection_test.out
+	@echo "💉 Running failure injection tests..."
+	@timeout 60s ./build/tests/hash_failure_injection_test.out
+
+# Build LibFuzzer target
+build/tests/fuzz/hash_fuzz_libfuzzer: tests/fuzz/hash_fuzz_libfuzzer.c
+	@echo "🔍 Building LibFuzzer target..."
+	@mkdir -p build/tests/fuzz
+	@if command -v clang >/dev/null 2>&1; then \
+		clang -fsanitize=fuzzer,address -g -O1 $(INCFLAGS) \
+			tests/fuzz/hash_fuzz_libfuzzer.c \
+			src/storage/hash/bucket.c src/storage/hash/siphash.c src/storage/hash/hash_engine.c \
+			-o build/tests/fuzz/hash_fuzz_libfuzzer; \
+		echo "✅ LibFuzzer target built: build/tests/fuzz/hash_fuzz_libfuzzer"; \
+	else \
+		echo "❌ clang not found. Install with: sudo apt-get install clang"; \
+		exit 1; \
+	fi
+
+# Build AFL++ target
+build/tests/fuzz/hash_fuzz_afl: tests/fuzz/hash_fuzz_afl.c
+	@echo "🔍 Building AFL++ target..."
+	@mkdir -p build/tests/fuzz
+	@if command -v afl-clang-fast >/dev/null 2>&1; then \
+		afl-clang-fast -fsanitize=address -g -O1 $(INCFLAGS) \
+			-DAFL_PERSISTENT_MODE \
+			tests/fuzz/hash_fuzz_afl.c \
+			src/storage/hash/bucket.c src/storage/hash/siphash.c src/storage/hash/hash_engine.c \
+			-o build/tests/fuzz/hash_fuzz_afl; \
+		echo "✅ AFL++ target built: build/tests/fuzz/hash_fuzz_afl"; \
+	else \
+		echo "❌ AFL++ not found. Install from: https://github.com/AFLplusplus/AFLplusplus"; \
+		exit 1; \
+	fi
+
+# Run LibFuzzer for a quick test (10 seconds)
+test-fuzz-libfuzzer: build/tests/fuzz/hash_fuzz_libfuzzer
+	@echo "🔍 Running LibFuzzer (10 second test)..."
+	@mkdir -p build/tests/fuzz/corpus
+	@timeout 10s ./build/tests/fuzz/hash_fuzz_libfuzzer -max_len=4096 \
+		build/tests/fuzz/corpus/ || true
+	@echo "✅ Fuzzing test complete. Check for crashes in build/tests/fuzz/"
+
+# Run AFL++ for a quick test (requires manual stop with Ctrl+C)
+test-fuzz-afl: build/tests/fuzz/hash_fuzz_afl
+	@echo "🔍 Running AFL++ fuzzer..."
+	@echo "💡 Press Ctrl+C to stop fuzzing"
+	@mkdir -p build/tests/fuzz/afl-in build/tests/fuzz/afl-out
+	@echo "PUT key1 value1" > build/tests/fuzz/afl-in/test1.txt
+	@echo "GET key1" > build/tests/fuzz/afl-in/test2.txt
+	@echo "DELETE key1" > build/tests/fuzz/afl-in/test3.txt
+	@if command -v afl-fuzz >/dev/null 2>&1; then \
+		afl-fuzz -i build/tests/fuzz/afl-in -o build/tests/fuzz/afl-out \
+			-- ./build/tests/fuzz/hash_fuzz_afl; \
+	else \
+		echo "❌ afl-fuzz not found"; \
+		exit 1; \
+	fi
+
+# Run all advanced tests
+test-advanced: test-chaos test-failure-injection
+	@echo "✅ All advanced tests completed!"
+
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning build artifacts..."
@@ -583,6 +655,13 @@ help:
 	@echo "  run-tests    - Build and execute all tests"
 	@echo "  executables  - Build executable files"
 	@echo "  clean        - Remove all build artifacts"
+	@echo ""
+	@echo "🧪 Advanced testing targets:"
+	@echo "  test-chaos             - Run chaos testing with random operations"
+	@echo "  test-failure-injection - Run failure injection tests"
+	@echo "  test-fuzz-libfuzzer    - Run LibFuzzer for 10 seconds"
+	@echo "  test-fuzz-afl          - Run AFL++ fuzzer (requires Ctrl+C to stop)"
+	@echo "  test-advanced          - Run all advanced tests (chaos + failure injection)"
 	@echo ""
 	@echo "🛡️  Memory safety targets:"
 	@echo "  asan         - Build and test with AddressSanitizer"
