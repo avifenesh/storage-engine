@@ -29,18 +29,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /* Chaos testing state */
@@ -295,8 +295,7 @@ test_chaos_interleaved_ops(void)
 
 		snprintf(key_buf, sizeof(key_buf), "interleaved_key_%d",
 			 key_id);
-		snprintf(value_buf, sizeof(value_buf), "interleaved_val_%d",
-			 i);
+		snprintf(value_buf, sizeof(value_buf), "interleaved_val_%d", i);
 
 		switch (op_type) {
 		case 0:

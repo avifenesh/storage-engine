@@ -34,8 +34,8 @@ test_harness_print_summary(struct test_context *ctx)
 	printf("\n========================================\n");
 
 	if (ctx->stats.tests_run > 0) {
-		pass_rate = (100.0 * ctx->stats.tests_passed)
-			    / ctx->stats.tests_run;
+		pass_rate
+		    = (100.0 * ctx->stats.tests_passed) / ctx->stats.tests_run;
 	} else {
 		pass_rate = 0.0;
 	}

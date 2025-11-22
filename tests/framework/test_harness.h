@@ -59,109 +59,109 @@ void test_harness_init(struct test_context *ctx, bool verbose, bool use_colors);
 void test_harness_print_summary(struct test_context *ctx);
 
 /* Test execution macro with timing */
-#define RUN_TEST_CTX(ctx, test)                                               \
-	do {                                                                  \
-		(ctx)->current_test_name = #test;                             \
-		(ctx)->test_start_time = test_get_time_usec();               \
-		printf("%sRunning %s...%s", (ctx)->use_colors ? COLOR_CYAN   \
-						: "",                         \
-		       #test, (ctx)->use_colors ? COLOR_RESET : "");          \
-		fflush(stdout);                                               \
-		(ctx)->stats.tests_run++;                                     \
-		int result = (test)();                                        \
-		long long elapsed = test_get_time_usec()                      \
-				    - (ctx)->test_start_time;                 \
-		(ctx)->stats.total_time_usec += elapsed;                      \
-		if (result == TEST_PASSED) {                                  \
-			printf(" %sPASSED%s (%.3f ms)\n",                     \
-			       (ctx)->use_colors ? COLOR_GREEN : "",          \
-			       (ctx)->use_colors ? COLOR_RESET : "",          \
-			       elapsed / 1000.0);                             \
-			(ctx)->stats.tests_passed++;                          \
-		} else if (result == TEST_SKIPPED) {                          \
-			printf(" %sSKIPPED%s\n",                              \
-			       (ctx)->use_colors ? COLOR_YELLOW : "",         \
-			       (ctx)->use_colors ? COLOR_RESET : "");         \
-			(ctx)->stats.tests_skipped++;                         \
-		} else {                                                      \
-			printf(" %sFAILED%s\n",                               \
-			       (ctx)->use_colors ? COLOR_RED : "",            \
-			       (ctx)->use_colors ? COLOR_RESET : "");         \
-			(ctx)->stats.tests_failed++;                          \
-		}                                                             \
+#define RUN_TEST_CTX(ctx, test)                                                \
+	do {                                                                   \
+		(ctx)->current_test_name = #test;                              \
+		(ctx)->test_start_time = test_get_time_usec();                 \
+		printf("%sRunning %s...%s",                                    \
+		       (ctx)->use_colors ? COLOR_CYAN : "", #test,             \
+		       (ctx)->use_colors ? COLOR_RESET : "");                  \
+		fflush(stdout);                                                \
+		(ctx)->stats.tests_run++;                                      \
+		int result = (test)();                                         \
+		long long elapsed                                              \
+		    = test_get_time_usec() - (ctx)->test_start_time;           \
+		(ctx)->stats.total_time_usec += elapsed;                       \
+		if (result == TEST_PASSED) {                                   \
+			printf(" %sPASSED%s (%.3f ms)\n",                      \
+			       (ctx)->use_colors ? COLOR_GREEN : "",           \
+			       (ctx)->use_colors ? COLOR_RESET : "",           \
+			       elapsed / 1000.0);                              \
+			(ctx)->stats.tests_passed++;                           \
+		} else if (result == TEST_SKIPPED) {                           \
+			printf(" %sSKIPPED%s\n",                               \
+			       (ctx)->use_colors ? COLOR_YELLOW : "",          \
+			       (ctx)->use_colors ? COLOR_RESET : "");          \
+			(ctx)->stats.tests_skipped++;                          \
+		} else {                                                       \
+			printf(" %sFAILED%s\n",                                \
+			       (ctx)->use_colors ? COLOR_RED : "",             \
+			       (ctx)->use_colors ? COLOR_RESET : "");          \
+			(ctx)->stats.tests_failed++;                           \
+		}                                                              \
 	} while (0)
 
 /* Assertion helpers */
-#define ASSERT_EQ(actual, expected, msg)                                      \
-	do {                                                                  \
-		if ((actual) != (expected)) {                                 \
-			fprintf(stderr,                                       \
-				"  Assertion failed: %s\n"                    \
-				"    Expected: %d\n"                          \
-				"    Actual: %d\n",                           \
-				(msg), (int)(expected), (int)(actual));       \
-			return TEST_FAILED;                                   \
-		}                                                             \
+#define ASSERT_EQ(actual, expected, msg)                                       \
+	do {                                                                   \
+		if ((actual) != (expected)) {                                  \
+			fprintf(stderr,                                        \
+				"  Assertion failed: %s\n"                     \
+				"    Expected: %d\n"                           \
+				"    Actual: %d\n",                            \
+				(msg), (int)(expected), (int)(actual));        \
+			return TEST_FAILED;                                    \
+		}                                                              \
 	} while (0)
 
-#define ASSERT_NE(actual, unexpected, msg)                                    \
-	do {                                                                  \
-		if ((actual) == (unexpected)) {                               \
-			fprintf(stderr,                                       \
-				"  Assertion failed: %s\n"                    \
-				"    Value should not be: %d\n",              \
-				(msg), (int)(unexpected));                    \
-			return TEST_FAILED;                                   \
-		}                                                             \
+#define ASSERT_NE(actual, unexpected, msg)                                     \
+	do {                                                                   \
+		if ((actual) == (unexpected)) {                                \
+			fprintf(stderr,                                        \
+				"  Assertion failed: %s\n"                     \
+				"    Value should not be: %d\n",               \
+				(msg), (int)(unexpected));                     \
+			return TEST_FAILED;                                    \
+		}                                                              \
 	} while (0)
 
-#define ASSERT_TRUE(condition, msg)                                           \
-	do {                                                                  \
-		if (!(condition)) {                                           \
-			fprintf(stderr, "  Assertion failed: %s\n", (msg));   \
-			return TEST_FAILED;                                   \
-		}                                                             \
+#define ASSERT_TRUE(condition, msg)                                            \
+	do {                                                                   \
+		if (!(condition)) {                                            \
+			fprintf(stderr, "  Assertion failed: %s\n", (msg));    \
+			return TEST_FAILED;                                    \
+		}                                                              \
 	} while (0)
 
-#define ASSERT_FALSE(condition, msg)                                          \
-	do {                                                                  \
-		if (condition) {                                              \
-			fprintf(stderr, "  Assertion failed: %s\n", (msg));   \
-			return TEST_FAILED;                                   \
-		}                                                             \
+#define ASSERT_FALSE(condition, msg)                                           \
+	do {                                                                   \
+		if (condition) {                                               \
+			fprintf(stderr, "  Assertion failed: %s\n", (msg));    \
+			return TEST_FAILED;                                    \
+		}                                                              \
 	} while (0)
 
-#define ASSERT_NULL(ptr, msg)                                                 \
-	do {                                                                  \
-		if ((ptr) != NULL) {                                          \
-			fprintf(stderr,                                       \
-				"  Assertion failed: %s\n"                    \
-				"    Pointer should be NULL\n",               \
-				(msg));                                       \
-			return TEST_FAILED;                                   \
-		}                                                             \
+#define ASSERT_NULL(ptr, msg)                                                  \
+	do {                                                                   \
+		if ((ptr) != NULL) {                                           \
+			fprintf(stderr,                                        \
+				"  Assertion failed: %s\n"                     \
+				"    Pointer should be NULL\n",                \
+				(msg));                                        \
+			return TEST_FAILED;                                    \
+		}                                                              \
 	} while (0)
 
-#define ASSERT_NOT_NULL(ptr, msg)                                             \
-	do {                                                                  \
-		if ((ptr) == NULL) {                                          \
-			fprintf(stderr,                                       \
-				"  Assertion failed: %s\n"                    \
-				"    Pointer should not be NULL\n",           \
-				(msg));                                       \
-			return TEST_FAILED;                                   \
-		}                                                             \
+#define ASSERT_NOT_NULL(ptr, msg)                                              \
+	do {                                                                   \
+		if ((ptr) == NULL) {                                           \
+			fprintf(stderr,                                        \
+				"  Assertion failed: %s\n"                     \
+				"    Pointer should not be NULL\n",            \
+				(msg));                                        \
+			return TEST_FAILED;                                    \
+		}                                                              \
 	} while (0)
 
-#define ASSERT_MEM_EQ(actual, expected, size, msg)                            \
-	do {                                                                  \
-		if (memcmp((actual), (expected), (size)) != 0) {              \
-			fprintf(stderr,                                       \
-				"  Assertion failed: %s\n"                    \
-				"    Memory contents differ\n",               \
-				(msg));                                       \
-			return TEST_FAILED;                                   \
-		}                                                             \
+#define ASSERT_MEM_EQ(actual, expected, size, msg)                             \
+	do {                                                                   \
+		if (memcmp((actual), (expected), (size)) != 0) {               \
+			fprintf(stderr,                                        \
+				"  Assertion failed: %s\n"                     \
+				"    Memory contents differ\n",                \
+				(msg));                                        \
+			return TEST_FAILED;                                    \
+		}                                                              \
 	} while (0)
 
 /* Time measurement helpers */

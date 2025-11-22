@@ -23,18 +23,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /*
@@ -277,9 +277,8 @@ test_resize_failure_recovery(void)
 	}
 
 	/* Try to perform more operations */
-	rc = hash_get(&engine, "resize_fail_key_0",
-		      strlen("resize_fail_key_0"), (const void **)&value,
-		      (size_t *)&i);
+	rc = hash_get(&engine, "resize_fail_key_0", strlen("resize_fail_key_0"),
+		      (const void **)&value, (size_t *)&i);
 	if (rc != 0) {
 		fprintf(stderr, "  Cannot retrieve keys after resize "
 				"failure\n");
@@ -329,8 +328,8 @@ test_max_capacity_handling(void)
 			      strlen(value));
 
 		if (rc != 0 && rc != -ENOSPC) {
-			fprintf(stderr,
-				"  Unexpected error at item %d: %d\n", i, rc);
+			fprintf(stderr, "  Unexpected error at item %d: %d\n",
+				i, rc);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}

@@ -74,8 +74,8 @@ execute_text_operations(const char *input, size_t size)
 			key = strtok(NULL, " ");
 			value = strtok(NULL, " ");
 			if (key && value) {
-				(void)hash_put(&engine, key, strlen(key),
-					       value, strlen(value));
+				(void)hash_put(&engine, key, strlen(key), value,
+					       strlen(value));
 			}
 		} else if (strcmp(operation, "GET") == 0) {
 			key = strtok(NULL, " ");
@@ -93,9 +93,8 @@ execute_text_operations(const char *input, size_t size)
 			uint32_t item_count;
 			uint32_t bucket_count;
 			uint32_t memory_usage;
-			(void)hash_engine_get_stats(&engine, &item_count,
-						    &bucket_count,
-						    &memory_usage);
+			(void)hash_engine_get_stats(
+			    &engine, &item_count, &bucket_count, &memory_usage);
 		}
 
 		line = strtok_r(NULL, "\n", &saveptr);
