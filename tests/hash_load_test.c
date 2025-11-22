@@ -22,18 +22,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /* Test: Insert and retrieve 100K items */
@@ -102,10 +102,8 @@ test_load_100k_items(void)
 		rc = hash_get(&engine, key_buf, strlen(key_buf),
 			      &retrieved_value, &retrieved_len);
 		if (rc != 0 || retrieved_len != strlen(value_buf)
-		    || memcmp(retrieved_value, value_buf, retrieved_len)
-			       != 0) {
-			fprintf(stderr, "\n  Retrieval failed at item %d\n",
-				i);
+		    || memcmp(retrieved_value, value_buf, retrieved_len) != 0) {
+			fprintf(stderr, "\n  Retrieval failed at item %d\n", i);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}
@@ -395,7 +393,7 @@ test_load_collision_stress(void)
 	fflush(stdout);
 
 	rc = hash_engine_init(&engine, 64); /* Small table to force collisions
-					      */
+					     */
 	if (rc != 0) {
 		return TEST_FAILED;
 	}
@@ -431,8 +429,7 @@ test_load_collision_stress(void)
 		rc = hash_get(&engine, key_buf, strlen(key_buf),
 			      &retrieved_value, &retrieved_len);
 		if (rc != 0 || retrieved_len != strlen(value_buf)
-		    || memcmp(retrieved_value, value_buf, retrieved_len)
-			       != 0) {
+		    || memcmp(retrieved_value, value_buf, retrieved_len) != 0) {
 			fprintf(stderr,
 				"\n  Retrieval failed at item %d (collision "
 				"corruption?)\n",

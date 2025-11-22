@@ -53,8 +53,8 @@ bench_insert_throughput(void)
 
 	for (i = 0; i < NUM_OPS; i++) {
 		snprintf(key_buf, sizeof(key_buf), "bench_insert_key_%d", i);
-		snprintf(value_buf, sizeof(value_buf),
-			 "bench_insert_value_%d", i);
+		snprintf(value_buf, sizeof(value_buf), "bench_insert_value_%d",
+			 i);
 		rc = hash_put(&engine, key_buf, strlen(key_buf), value_buf,
 			      strlen(value_buf));
 		if (rc != 0) {
@@ -103,8 +103,7 @@ bench_get_throughput(void)
 	/* Populate */
 	for (i = 0; i < NUM_OPS; i++) {
 		snprintf(key_buf, sizeof(key_buf), "bench_get_key_%d", i);
-		snprintf(value_buf, sizeof(value_buf), "bench_get_value_%d",
-			 i);
+		snprintf(value_buf, sizeof(value_buf), "bench_get_value_%d", i);
 		rc = hash_put(&engine, key_buf, strlen(key_buf), value_buf,
 			      strlen(value_buf));
 		if (rc != 0) {
@@ -165,8 +164,8 @@ bench_delete_throughput(void)
 	/* Populate */
 	for (i = 0; i < NUM_OPS; i++) {
 		snprintf(key_buf, sizeof(key_buf), "bench_delete_key_%d", i);
-		snprintf(value_buf, sizeof(value_buf),
-			 "bench_delete_value_%d", i);
+		snprintf(value_buf, sizeof(value_buf), "bench_delete_value_%d",
+			 i);
 		rc = hash_put(&engine, key_buf, strlen(key_buf), value_buf,
 			      strlen(value_buf));
 		if (rc != 0) {
@@ -378,8 +377,7 @@ bench_varying_value_sizes(void)
 		start = get_time_usec();
 
 		for (i = 0; i < NUM_OPS; i++) {
-			snprintf(key_buf, sizeof(key_buf), "varsize_key_%d",
-				 i);
+			snprintf(key_buf, sizeof(key_buf), "varsize_key_%d", i);
 			rc = hash_put(&engine, key_buf, strlen(key_buf),
 				      value_buf, value_size);
 			if (rc != 0) {
@@ -435,8 +433,8 @@ bench_load_factor_impact(void)
 
 		/* Populate */
 		for (i = 0; i < num_items; i++) {
-			snprintf(key_buf, sizeof(key_buf),
-				 "loadfactor_key_%d", i);
+			snprintf(key_buf, sizeof(key_buf), "loadfactor_key_%d",
+				 i);
 			snprintf(value_buf, sizeof(value_buf),
 				 "loadfactor_value_%d", i);
 			rc = hash_put(&engine, key_buf, strlen(key_buf),
@@ -458,8 +456,8 @@ bench_load_factor_impact(void)
 
 		for (i = 0; i < NUM_LOOKUPS; i++) {
 			int key_id = i % num_items;
-			snprintf(key_buf, sizeof(key_buf),
-				 "loadfactor_key_%d", key_id);
+			snprintf(key_buf, sizeof(key_buf), "loadfactor_key_%d",
+				 key_id);
 			rc = hash_get(&engine, key_buf, strlen(key_buf),
 				      &retrieved_value, &retrieved_len);
 		}

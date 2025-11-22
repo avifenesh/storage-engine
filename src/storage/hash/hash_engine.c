@@ -201,7 +201,8 @@ hash_put(struct hash_engine *engine, const void *key, size_t key_len,
 			if (bucket_set_replace_value(bucket, value, value_len)
 			    != 0)
 				return -ENOMEM;
-			engine->total_memory += (int)(value_len - old_value_len);
+			engine->total_memory
+			    += (int)(value_len - old_value_len);
 			return 0;
 		}
 	}
@@ -260,14 +261,14 @@ static inline int
 rehash_insert(struct hash_bucket *buckets, int bucket_count, const void *key,
 	      size_t key_len, const void *value, size_t value_len)
 {
-	int index
-	    = (int)(siphash(key, key_len, hash_key_0, hash_key_1)
-		    % (uint64_t)bucket_count);
+	int index = (int)(siphash(key, key_len, hash_key_0, hash_key_1)
+			  % (uint64_t)bucket_count);
 	for (int i = 0; i < bucket_count; i++) {
 		int idx = (index + i) % bucket_count;
 		struct hash_bucket *bucket = &buckets[idx];
 		if (bucket_is_empty(bucket) || bucket_is_tombstone(bucket)) {
-			int rc = bucket_set(bucket, key, key_len, value, value_len);
+			int rc = bucket_set(bucket, key, key_len, value,
+					    value_len);
 			return (rc == 0) ? 0 : -rc;
 		}
 	}
@@ -308,9 +309,9 @@ hash_engine_resize(struct hash_engine *engine, int new_bucket_count)
 	for (int i = 0; i < old_bucket_count; i++) {
 		struct hash_bucket *bucket = &old_buckets[i];
 		if (!bucket_is_empty(bucket) && !bucket_is_tombstone(bucket)) {
-			int rc = rehash_insert(new_buckets, new_bucket_count,
-					       bucket->key, bucket->key_len,
-					       bucket->value, bucket->value_len);
+			int rc = rehash_insert(
+			    new_buckets, new_bucket_count, bucket->key,
+			    bucket->key_len, bucket->value, bucket->value_len);
 			if (rc != 0) {
 				/* Rollback on failure */
 				for (int j = 0; j < new_bucket_count; j++) {

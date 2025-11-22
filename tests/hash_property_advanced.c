@@ -28,18 +28,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /* Oracle slot for reference implementation */
@@ -108,20 +108,19 @@ test_property_oracle(void)
 
 			} else if (operation == 1) { /* GET */
 				rc = hash_get(&engine, key_buf, strlen(key_buf),
-					      &retrieved_value,
-					      &retrieved_len);
+					      &retrieved_value, &retrieved_len);
 
 				/* Check against oracle */
 				if (oracle[oracle_idx].present
 				    && oracle[oracle_idx].key == key_id) {
 					if (rc != 0
 					    || retrieved_len
-						       != oracle[oracle_idx]
-								  .value_len
+						   != oracle[oracle_idx]
+							  .value_len
 					    || memcmp(retrieved_value,
 						      oracle[oracle_idx].value,
 						      retrieved_len)
-						       != 0) {
+						   != 0) {
 						fprintf(stderr,
 							"Oracle mismatch on "
 							"GET trial %d op %d\n",
@@ -186,8 +185,7 @@ test_property_oracle(void)
 	}
 
 	if ((int)hash_count != oracle_count) {
-		fprintf(stderr,
-			"Final count mismatch: hash=%u oracle=%d\n",
+		fprintf(stderr, "Final count mismatch: hash=%u oracle=%d\n",
 			hash_count, oracle_count);
 		hash_engine_destroy(&engine);
 		return TEST_FAILED;

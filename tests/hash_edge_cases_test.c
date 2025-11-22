@@ -22,18 +22,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /* Test: NULL pointer handling */
@@ -403,8 +403,8 @@ test_special_character_keys(void)
 		return TEST_FAILED;
 	}
 
-	rc = hash_get(&engine, binary_key, sizeof(binary_key),
-		      &retrieved_value, &retrieved_len);
+	rc = hash_get(&engine, binary_key, sizeof(binary_key), &retrieved_value,
+		      &retrieved_len);
 	if (rc != 0 || retrieved_len != strlen(value)
 	    || memcmp(retrieved_value, value, strlen(value)) != 0) {
 		fprintf(stderr, "Failed to retrieve with binary key\n");
@@ -554,7 +554,7 @@ test_delete_reinsert_cycles(void)
 			      &retrieved_len);
 		if (rc != 0 || retrieved_len != strlen(value_buf)
 		    || memcmp(retrieved_value, value_buf, strlen(value_buf))
-			       != 0) {
+			   != 0) {
 			fprintf(stderr, "Get failed at cycle %d\n", i);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
@@ -605,8 +605,8 @@ test_load_factor_boundaries(void)
 		rc = hash_put(&engine, key_buf, strlen(key_buf), value,
 			      strlen(value));
 		if (rc != 0) {
-			fprintf(stderr,
-				"Insert failed at boundary, item %d\n", i);
+			fprintf(stderr, "Insert failed at boundary, item %d\n",
+				i);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}

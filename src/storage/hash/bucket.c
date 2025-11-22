@@ -4,8 +4,8 @@
 
 #include "storage/hash/bucket.h"
 #include <errno.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 int
 bucket_is_empty(const struct hash_bucket *bucket)

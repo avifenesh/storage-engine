@@ -21,18 +21,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /* Test: Basic init and destroy cycle */
@@ -344,8 +344,7 @@ test_resize_memory_safety(void)
 	num_items = (int)(initial_buckets * MAX_LOAD_FACTOR * 4);
 	for (i = 0; i < num_items; i++) {
 		snprintf(key_buf, sizeof(key_buf), "resize_mem_key_%d", i);
-		snprintf(value_buf, sizeof(value_buf), "resize_mem_val_%d",
-			 i);
+		snprintf(value_buf, sizeof(value_buf), "resize_mem_val_%d", i);
 		rc = hash_put(&engine, key_buf, strlen(key_buf), value_buf,
 			      strlen(value_buf));
 		if (rc != 0) {
@@ -370,16 +369,13 @@ test_resize_memory_safety(void)
 	/* Verify all data is still accessible after resizes */
 	for (i = 0; i < num_items; i++) {
 		snprintf(key_buf, sizeof(key_buf), "resize_mem_key_%d", i);
-		snprintf(value_buf, sizeof(value_buf), "resize_mem_val_%d",
-			 i);
+		snprintf(value_buf, sizeof(value_buf), "resize_mem_val_%d", i);
 		rc = hash_get(&engine, key_buf, strlen(key_buf),
 			      &retrieved_value, &retrieved_len);
 		if (rc != 0 || retrieved_len != strlen(value_buf)
-		    || memcmp(retrieved_value, value_buf, retrieved_len)
-			       != 0) {
+		    || memcmp(retrieved_value, value_buf, retrieved_len) != 0) {
 			fprintf(stderr,
-				"Data corrupted after resize for item %d\n",
-				i);
+				"Data corrupted after resize for item %d\n", i);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}

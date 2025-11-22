@@ -28,18 +28,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /* Thread arguments for concurrent operations */
@@ -165,8 +165,8 @@ concurrent_write_unique_worker(void *arg)
 			 args->thread_id, i);
 		snprintf(value_buf, sizeof(value_buf), "write_val_%d_%d",
 			 args->thread_id, i);
-		rc = hash_put(args->engine, key_buf, strlen(key_buf),
-			      value_buf, strlen(value_buf));
+		rc = hash_put(args->engine, key_buf, strlen(key_buf), value_buf,
+			      strlen(value_buf));
 		if (rc != 0) {
 			local_errors++;
 		}
@@ -230,8 +230,7 @@ test_concurrent_writes_unique_keys(void)
 	}
 
 	if ((int)item_count != expected_count) {
-		fprintf(stderr,
-			"Item count mismatch: expected %d, got %u\n",
+		fprintf(stderr, "Item count mismatch: expected %d, got %u\n",
 			expected_count, item_count);
 		return TEST_FAILED;
 	}
@@ -459,10 +458,9 @@ concurrent_resize_worker(void *arg)
 		snprintf(key_buf, sizeof(key_buf), "resize_key_%d_%d",
 			 args->thread_id, i);
 		snprintf(value_buf, sizeof(value_buf),
-			 "resize_value_%d_%d_with_padding", args->thread_id,
-			 i);
-		rc = hash_put(args->engine, key_buf, strlen(key_buf),
-			      value_buf, strlen(value_buf));
+			 "resize_value_%d_%d_with_padding", args->thread_id, i);
+		rc = hash_put(args->engine, key_buf, strlen(key_buf), value_buf,
+			      strlen(value_buf));
 		if (rc != 0 && rc != -ENOMEM && rc != -ENOSPC) {
 			local_errors++;
 		}
@@ -531,8 +529,7 @@ test_concurrent_resize(void)
 	}
 
 	if (final_buckets <= initial_buckets) {
-		fprintf(stderr,
-			"Resize did not occur: initial=%u final=%u\n",
+		fprintf(stderr, "Resize did not occur: initial=%u final=%u\n",
 			initial_buckets, final_buckets);
 		return TEST_FAILED;
 	}

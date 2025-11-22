@@ -20,18 +20,18 @@ static int tests_run = 0;
 static int tests_passed = 0;
 static int tests_failed = 0;
 
-#define RUN_TEST(test)                                                        \
-	do {                                                                  \
-		printf("Running %s...", #test);                               \
-		fflush(stdout);                                               \
-		tests_run++;                                                  \
-		if ((test)() == TEST_PASSED) {                                \
-			printf(" PASSED\n");                                  \
-			tests_passed++;                                       \
-		} else {                                                      \
-			printf(" FAILED\n");                                  \
-			tests_failed++;                                       \
-		}                                                             \
+#define RUN_TEST(test)                                                         \
+	do {                                                                   \
+		printf("Running %s...", #test);                                \
+		fflush(stdout);                                                \
+		tests_run++;                                                   \
+		if ((test)() == TEST_PASSED) {                                 \
+			printf(" PASSED\n");                                   \
+			tests_passed++;                                        \
+		} else {                                                       \
+			printf(" FAILED\n");                                   \
+			tests_failed++;                                        \
+		}                                                              \
 	} while (0)
 
 /* Test: Initialize engine with various bucket counts */
@@ -157,8 +157,8 @@ test_single_element(void)
 	/* Retrieve the element */
 	rc = hash_get(&engine, key, strlen(key), &retrieved_value,
 		      &retrieved_len);
-	if (rc != 0 || retrieved_len != strlen(value) ||
-	    memcmp(retrieved_value, value, retrieved_len) != 0) {
+	if (rc != 0 || retrieved_len != strlen(value)
+	    || memcmp(retrieved_value, value, retrieved_len) != 0) {
 		fprintf(stderr, "Failed to retrieve single element\n");
 		hash_engine_destroy(&engine);
 		return TEST_FAILED;
@@ -238,8 +238,8 @@ test_update_existing_key(void)
 	/* Verify new value is retrieved */
 	rc = hash_get(&engine, key, strlen(key), &retrieved_value,
 		      &retrieved_len);
-	if (rc != 0 || retrieved_len != strlen(value2) ||
-	    memcmp(retrieved_value, value2, retrieved_len) != 0) {
+	if (rc != 0 || retrieved_len != strlen(value2)
+	    || memcmp(retrieved_value, value2, retrieved_len) != 0) {
 		fprintf(stderr, "Failed to retrieve updated value\n");
 		hash_engine_destroy(&engine);
 		return TEST_FAILED;
@@ -296,8 +296,8 @@ test_multiple_keys(void)
 		snprintf(value_buf, sizeof(value_buf), "value_%d", i);
 		rc = hash_get(&engine, key_buf, strlen(key_buf),
 			      &retrieved_value, &retrieved_len);
-		if (rc != 0 || retrieved_len != strlen(value_buf) ||
-		    memcmp(retrieved_value, value_buf, retrieved_len) != 0) {
+		if (rc != 0 || retrieved_len != strlen(value_buf)
+		    || memcmp(retrieved_value, value_buf, retrieved_len) != 0) {
 			fprintf(stderr,
 				"Failed to retrieve correct value for key %d\n",
 				i);
@@ -353,8 +353,9 @@ test_zero_length(void)
 		rc = hash_get(&engine, empty_key, 0, &retrieved_value,
 			      &retrieved_len);
 		if (rc != 0) {
-			fprintf(stderr,
-				"If empty keys allowed, should be retrievable\n");
+			fprintf(
+			    stderr,
+			    "If empty keys allowed, should be retrievable\n");
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}
@@ -367,8 +368,9 @@ test_zero_length(void)
 		rc = hash_get(&engine, key, strlen(key), &retrieved_value,
 			      &retrieved_len);
 		if (rc != 0 || retrieved_len != 0) {
-			fprintf(stderr,
-				"If empty values allowed, should be retrievable\n");
+			fprintf(
+			    stderr,
+			    "If empty values allowed, should be retrievable\n");
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}
@@ -428,8 +430,8 @@ test_large_data(void)
 	/* Retrieve and verify */
 	rc = hash_get(&engine, large_key, KEY_SIZE, &retrieved_value,
 		      &retrieved_len);
-	if (rc != 0 || retrieved_len != VALUE_SIZE ||
-	    memcmp(retrieved_value, large_value, VALUE_SIZE) != 0) {
+	if (rc != 0 || retrieved_len != VALUE_SIZE
+	    || memcmp(retrieved_value, large_value, VALUE_SIZE) != 0) {
 		fprintf(stderr, "Failed to retrieve large data correctly\n");
 		hash_engine_destroy(&engine);
 		free(large_key);
@@ -493,8 +495,8 @@ test_duplicate_keys(void)
 	/* Verify latest value is stored */
 	rc = hash_get(&engine, key, strlen(key), &retrieved_value,
 		      &retrieved_len);
-	if (rc != 0 || retrieved_len != strlen(value3) ||
-	    memcmp(retrieved_value, value3, retrieved_len) != 0) {
+	if (rc != 0 || retrieved_len != strlen(value3)
+	    || memcmp(retrieved_value, value3, retrieved_len) != 0) {
 		fprintf(stderr, "Should retrieve latest value\n");
 		hash_engine_destroy(&engine);
 		return TEST_FAILED;
@@ -541,8 +543,7 @@ test_delete_nonexistent(void)
 	rc = hash_get(&engine, key1, strlen(key1), &retrieved_value,
 		      &retrieved_len);
 	if (rc != 0) {
-		fprintf(stderr,
-			"Existing key should still be retrievable\n");
+		fprintf(stderr, "Existing key should still be retrievable\n");
 		hash_engine_destroy(&engine);
 		return TEST_FAILED;
 	}
@@ -610,11 +611,12 @@ test_resize_trigger(void)
 		snprintf(value_buf, sizeof(value_buf), "resize_value_%d", i);
 		rc = hash_get(&engine, key_buf, strlen(key_buf),
 			      &retrieved_value, &retrieved_len);
-		if (rc != 0 || retrieved_len != strlen(value_buf) ||
-		    memcmp(retrieved_value, value_buf, retrieved_len) != 0) {
-			fprintf(stderr,
-				"Data lost or corrupted after resize for key %d\n",
-				i);
+		if (rc != 0 || retrieved_len != strlen(value_buf)
+		    || memcmp(retrieved_value, value_buf, retrieved_len) != 0) {
+			fprintf(
+			    stderr,
+			    "Data lost or corrupted after resize for key %d\n",
+			    i);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}
@@ -663,8 +665,8 @@ test_sequential_operations(void)
 		/* Get */
 		rc = hash_get(&engine, key, strlen(key), &retrieved_value,
 			      &retrieved_len);
-		if (rc != 0 || retrieved_len != strlen(value) ||
-		    memcmp(retrieved_value, value, retrieved_len) != 0) {
+		if (rc != 0 || retrieved_len != strlen(value)
+		    || memcmp(retrieved_value, value, retrieved_len) != 0) {
 			fprintf(stderr, "Get failed in cycle %d\n", i);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
@@ -692,8 +694,8 @@ test_sequential_operations(void)
 		/* Verify count is 0 */
 		rc = hash_engine_get_stats(&engine, &item_count, NULL, NULL);
 		if (rc != 0 || item_count != 0) {
-			fprintf(stderr,
-				"Item count should be 0 in cycle %d\n", i);
+			fprintf(stderr, "Item count should be 0 in cycle %d\n",
+				i);
 			hash_engine_destroy(&engine);
 			return TEST_FAILED;
 		}
