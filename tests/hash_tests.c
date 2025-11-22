@@ -37,7 +37,7 @@ test_basic_operations(void)
 		fprintf(stderr, "hash_tests: hash_delete failed (%d)\n", rc);
 		goto cleanup;
 	}
-
+	
 	rc = 0;
 
 cleanup:

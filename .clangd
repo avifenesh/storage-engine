@@ -1,0 +1,15 @@
+CompileFlags:
+  Add:
+    - -std=gnu11
+    - -D_POSIX_C_SOURCE=200809L
+    - -D_GNU_SOURCE
+    - -pthread
+    - -I/home/admin/storage-engine-kernel/include
+    - -DCONFIG_ARM64
+    - -DCONFIG_64BIT
+    - -DCONFIG_AS_CFI=1
+    - -DCONFIG_AS_CFI_SIGNAL_FRAME=1
+    - -DCONFIG_AS_CFI_SECTIONS=1
+    - -Wall
+    - -Wextra
+

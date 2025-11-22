@@ -7,6 +7,8 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [
+                "_POSIX_C_SOURCE=200809L",
+                "_GNU_SOURCE",
                 "CONFIG_ARM64",
                 "CONFIG_64BIT",
                 "CONFIG_AS_CFI=1",
@@ -16,7 +18,10 @@
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "gnu11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "linux-gcc-arm64"
+            "intelliSenseMode": "linux-gcc-arm64",
+            "compilerArgs": [
+                "-pthread"
+            ]
         }
     ],
     "version": 4

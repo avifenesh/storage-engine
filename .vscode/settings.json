@@ -28,5 +28,6 @@
     "editor.formatOnPaste": true,
     "[jsonc]": {
         "editor.defaultFormatter": "vscode.json-language-features"
-    }
+    },
+    "clangd.arguments": []
 }
