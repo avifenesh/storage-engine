@@ -4,14 +4,16 @@
  *
  * Compile with AFL++:
  *   afl-clang-fast -fsanitize=address -g -O1 -I../../include \
- *                  hash_fuzz_afl.c ../../src/storage/hash/*.c \
- *                  -o hash_fuzz_afl
+ *                  hash_fuzz_afl.c ../../src/storage/hash/bucket.c \
+ *                  ../../src/storage/hash/siphash.c
+ * ../../src/storage/hash/hash_engine.c \ -o hash_fuzz_afl
  *
  * Or with persistent mode (faster):
  *   afl-clang-fast -fsanitize=address -g -O1 -I../../include \
  *                  -DAFL_PERSISTENT_MODE \
- *                  hash_fuzz_afl.c ../../src/storage/hash/*.c \
- *                  -o hash_fuzz_afl
+ *                  hash_fuzz_afl.c ../../src/storage/hash/bucket.c \
+ *                  ../../src/storage/hash/siphash.c
+ * ../../src/storage/hash/hash_engine.c \ -o hash_fuzz_afl
  *
  * Run with:
  *   afl-fuzz -i input_corpus/ -o output/ -- ./hash_fuzz_afl

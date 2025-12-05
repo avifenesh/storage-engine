@@ -181,12 +181,15 @@ Throughput benchmarking suite with 7 benchmarks:
 ## Test Execution Commands
 
 ```bash
-# Core correctness tests
-make tests
-./build/tests/tests/hash_correctness_test.out
-./build/tests/tests/hash_memory_test.out
-./build/tests/tests/hash_edge_cases_test.out
-./build/tests/tests/hash_property_advanced.out
+# Run all tests (recommended)
+make run-tests
+
+# Or run individual tests sequentially
+make tests && \
+	./build/tests/tests/hash_correctness_test.out && \
+	./build/tests/tests/hash_memory_test.out && \
+	./build/tests/tests/hash_edge_cases_test.out && \
+	./build/tests/tests/hash_property_advanced.out
 
 # Memory safety validation
 valgrind --leak-check=full --show-leak-kinds=all ./build/tests/tests/hash_memory_test.out

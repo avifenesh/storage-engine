@@ -229,9 +229,14 @@ test_chaos_init_destroy(void)
 	printf("\n  Performing %d rapid init/destroy cycles...\n", NUM_CYCLES);
 
 	for (i = 0; i < NUM_CYCLES; i++) {
+		int bucket_count;
+		int num_ops;
+		int j;
+		char key[32];
+		char value[64];
+
 		/* Random bucket count */
-		int bucket_count
-		    = 16 << (rand() % 6); /* 16, 32, 64, 128, 256, 512 */
+		bucket_count = 16 << (rand() % 6); /* 16, 32, 64, 128, 256, 512 */
 
 		rc = hash_engine_init(&engine, bucket_count);
 		if (rc != 0) {
@@ -240,11 +245,8 @@ test_chaos_init_destroy(void)
 		}
 
 		/* Random number of operations */
-		int num_ops = rand() % 20;
-		int j;
+		num_ops = rand() % 20;
 		for (j = 0; j < num_ops; j++) {
-			char key[32];
-			char value[64];
 			snprintf(key, sizeof(key), "key_%d", j);
 			snprintf(value, sizeof(value), "value_%d", j);
 			(void)hash_put(&engine, key, strlen(key), value,

@@ -50,6 +50,7 @@ test_near_oom_behavior(void)
 	struct hash_engine engine;
 	char key_buf[64];
 	char *large_value;
+	uint32_t item_count;
 	int rc;
 	int i;
 	int successful_inserts;
@@ -94,7 +95,6 @@ test_near_oom_behavior(void)
 	       successful_inserts);
 
 	/* Engine should still be functional */
-	uint32_t item_count;
 	rc = hash_engine_get_stats(&engine, &item_count, NULL, NULL);
 	if (rc != 0) {
 		fprintf(stderr, "  Engine corrupted after memory pressure\n");
@@ -234,6 +234,7 @@ test_resize_failure_recovery(void)
 	const char *value = "resize_value";
 	uint32_t initial_bucket_count;
 	uint32_t current_bucket_count;
+	int max_items;
 	int rc;
 	int i;
 	int inserted_before_failure;
@@ -250,7 +251,7 @@ test_resize_failure_recovery(void)
 	}
 
 	/* Insert items until we would trigger a resize */
-	int max_items = (int)(initial_bucket_count * MAX_LOAD_FACTOR) + 5;
+	max_items = (int)(initial_bucket_count * MAX_LOAD_FACTOR) + 5;
 
 	inserted_before_failure = 0;
 	for (i = 0; i < max_items; i++) {

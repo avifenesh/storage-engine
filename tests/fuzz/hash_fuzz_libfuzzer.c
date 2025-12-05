@@ -4,8 +4,9 @@
  *
  * Compile with:
  *   clang -fsanitize=fuzzer,address -g -O1 -I../../include \
- *         hash_fuzz_libfuzzer.c ../../src/storage/hash/*.c \
- *         -o hash_fuzz_libfuzzer
+ *         hash_fuzz_libfuzzer.c ../../src/storage/hash/bucket.c \
+ *         ../../src/storage/hash/siphash.c ../../src/storage/hash/hash_engine.c
+ * \ -o hash_fuzz_libfuzzer
  *
  * Run with:
  *   ./hash_fuzz_libfuzzer -max_len=4096 -timeout=10
@@ -129,6 +130,8 @@ parse_and_execute_operations(const uint8_t *data, size_t size)
 int
 LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
+	static int iteration_count = 0;
+
 	/* Initialize engine on first run */
 	if (!engine_initialized) {
 		if (hash_engine_init(&global_engine, 64) != 0) {
@@ -147,7 +150,6 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 	/* Periodically reset to avoid memory accumulation */
 	/* This is a simplification - in production fuzzing, you might
 	 * want more sophisticated state management */
-	static int iteration_count = 0;
 	iteration_count++;
 	if (iteration_count % 100 == 0) {
 		hash_engine_destroy(&global_engine);

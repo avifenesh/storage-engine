@@ -41,8 +41,8 @@ ASSEMBLY = $(SRC_SOURCES:.c=.s)
 OBJECTS = $(SRC_SOURCES:.c=.o)
 TARGETS = $(SRC_SOURCES:.c=)
 
-# Discover tests under tests/
-TEST_SOURCES := $(shell find tests -type f -name '*.c' 2>/dev/null)
+# Discover tests under tests/ (exclude framework helpers and fuzz targets)
+TEST_SOURCES := $(shell find tests -type f -name '*.c' ! -path 'tests/framework/*' ! -path 'tests/fuzz/*' 2>/dev/null)
 TEST_BINARIES = $(TEST_SOURCES:%.c=build/tests/%.out)
 
 # Benchmarks
@@ -316,7 +316,7 @@ asm-optimize-report: clean
 
 # Dynamic optimization level comparison (usage: make asm-compare LOW=0 HIGH=3)
 asm-compare: CFLAGS := $(filter-out -g -gdwarf-4,$(CFLAGS))
-asm-compare: 
+asm-compare:
 	@if [ -z "$(LOW)" ] || [ -z "$(HIGH)" ]; then \
 		echo "❌ Usage: make asm-compare LOW=<level> HIGH=<level>"; \
 		echo "   Example: make asm-compare LOW=0 HIGH=2"; \
