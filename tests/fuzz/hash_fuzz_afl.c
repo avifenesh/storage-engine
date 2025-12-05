@@ -41,7 +41,6 @@ execute_text_operations(const char *input, size_t size)
 	char *line;
 	char *saveptr;
 	char *input_copy;
-	char *token;
 	char *operation;
 	char *key;
 	char *value;
