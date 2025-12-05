@@ -9,6 +9,7 @@
     "editor.defaultFoldingRangeProvider": null,
     "files.associations": {
         "*.toml": "toml",
+	"*.h": "c",
         "stdio.h": "c",
         "type_traits": "c"
     },
