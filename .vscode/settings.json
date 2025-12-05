@@ -35,6 +35,9 @@
         "editor.defaultFormatter": "vscode.json-language-features"
     },
     "editor.semanticHighlighting.enabled": true,
+    "clangd.arguments": [
+        "--clang-tidy"
+    ],
     "editor.rulers": [80],
     "editor.tabSize": 8,
     "editor.insertSpaces": false,
