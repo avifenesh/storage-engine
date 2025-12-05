@@ -236,7 +236,8 @@ test_chaos_init_destroy(void)
 		char value[64];
 
 		/* Random bucket count */
-		bucket_count = 16 << (rand() % 6); /* 16, 32, 64, 128, 256, 512 */
+		bucket_count = 16
+			       << (rand() % 6); /* 16, 32, 64, 128, 256, 512 */
 
 		rc = hash_engine_init(&engine, bucket_count);
 		if (rc != 0) {
