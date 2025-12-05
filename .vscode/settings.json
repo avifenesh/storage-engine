@@ -5,8 +5,8 @@
     "github.copilot.chat.generateTests.codeLens": true,
     "github.copilot.chat.languageContext.fix.typescript.enabled": false,
     "github.copilot.chat.newWorkspaceCreation.enabled": false,
-    "editor.defaultFormatter": "ms-vscode.cpptools",
-    "editor.defaultFoldingRangeProvider": "ms-vscode.cpptools",
+    "editor.defaultFormatter": null,
+    "editor.defaultFoldingRangeProvider": null,
     "files.associations": {
         "*.toml": "toml",
         "stdio.h": "c",
@@ -17,7 +17,12 @@
     "vim.vimrc.enable": true,
     "vim.vimrc.path": "$HOME/.vimrc",
     "[c]": {
-        "editor.defaultFormatter": "ms-vscode.cpptools"
+        "editor.defaultFormatter": "KylinIdeTeam.kylin-clangd",
+        "editor.formatOnSave": true,
+        "editor.formatOnPaste": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit"
+        }
     },
     "C_Cpp.clang_format_style": "file",
     "C_Cpp.clang_format_fallbackStyle": "GNU",
@@ -29,5 +34,12 @@
     "[jsonc]": {
         "editor.defaultFormatter": "vscode.json-language-features"
     },
-    "clangd.arguments": []
+    "editor.semanticHighlighting.enabled": true,
+    "editor.rulers": [80],
+    "editor.tabSize": 8,
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
 }
