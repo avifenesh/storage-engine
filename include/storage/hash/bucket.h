@@ -6,7 +6,7 @@
 #ifndef STORAGE_HASH_BUCKET_H
 #define STORAGE_HASH_BUCKET_H
 
-#include <pthread.h>
+#include "utils/futex_mutex_wrapper.h"
 #include <stddef.h>
 
 struct hash_bucket {
@@ -14,13 +14,13 @@ struct hash_bucket {
 	size_t key_len;
 	const void *value;
 	size_t value_len;
-	struct hash_bucket *next;
-	pthread_rwlock_t rwlock;
+	futex_mutex_t lock_futex;
 };
 
-int bucket_is_empty(const struct hash_bucket *bucket);
-int bucket_is_tombstone(const struct hash_bucket *bucket);
-void bucket_make_tombstone(struct hash_bucket *bucket);
+int bucket_is_empty(struct hash_bucket *bucket);
+int bucket_is_tombstone(struct hash_bucket *bucket);
+int bucket_make_tombstone(struct hash_bucket *bucket);
+int bucket_make_tombstone_unlocked(struct hash_bucket *bucket);
 int bucket_init(struct hash_bucket *bucket);
 int bucket_destroy(struct hash_bucket *bucket);
 int bucket_set(struct hash_bucket *bucket, const void *key, size_t key_len,

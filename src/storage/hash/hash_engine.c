@@ -8,7 +8,7 @@
 #include "storage/hash/bucket.h"
 #include "storage/hash/siphash.h"
 #include <errno.h>
-#include <pthread.h>
+#include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -18,116 +18,49 @@
 
 static uint64_t hash_key_0 = 0;
 static uint64_t hash_key_1 = 0;
-static inline int hash_engine_hash(struct hash_engine *engine, const void *key,
-				   size_t key_len);
-static inline int hash_engine_resize(struct hash_engine *engine,
-				     int new_bucket_count);
-static inline int rehash_insert(struct hash_bucket *buckets, int bucket_count,
-				const void *key, size_t key_len,
-				const void *value, size_t value_len);
+
+static inline uint32_t compute_hash(const void *key, size_t key_len,
+				    uint32_t bucket_count);
 static inline int keys_equal(const void *k1, size_t l1, const void *k2,
 			     size_t l2);
-static inline int needs_resize(struct hash_engine *engine);
+static void migrate_bucket(struct hash_engine *engine,
+			   struct hash_bucket *old_bucket);
+static void migrate_some_buckets(struct hash_engine *engine, uint32_t count);
+static void finish_resize(struct hash_engine *engine);
+static int hash_engine_start_resize(struct hash_engine *engine,
+				    uint32_t new_bucket_count);
+static int lookup_in_table(struct hash_bucket *buckets, uint32_t bucket_count,
+			   const void *key, size_t key_len, const void **value,
+			   size_t *value_len);
+static int insert_into_table(struct hash_bucket *buckets, uint32_t bucket_count,
+			     const void *key, size_t key_len, const void *value,
+			     size_t value_len, int *is_new);
+static int delete_from_table(struct hash_bucket *buckets, uint32_t bucket_count,
+			     const void *key, size_t key_len,
+			     size_t *deleted_key_len,
+			     size_t *deleted_value_len);
 
 static inline int
-needs_resize(struct hash_engine *engine)
+needs_grow(struct hash_engine *engine)
 {
-	float load_factor
-	    = (float)engine->item_count / (float)engine->bucket_count;
-
-	if (load_factor > MAX_LOAD_FACTOR
-	    && engine->bucket_count < MAX_BUCKET_COUNT)
-		return 1;
-
-	if (load_factor < MIN_LOAD_FACTOR
-	    && engine->bucket_count > MIN_BUCKET_COUNT)
-		return 1;
-
-	return 0;
+	uint32_t count = atomic_load(&engine->item_count);
+	uint32_t buckets = atomic_load(&engine->bucket_count);
+	return count >= buckets * MAX_LOAD_FACTOR;
 }
 
 static inline int
-is_power_of_two(int x)
+needs_shrink(struct hash_engine *engine)
 {
-	return x > 0 && (x & (x - 1)) == 0;
+	uint32_t count = atomic_load(&engine->item_count);
+	uint32_t buckets = atomic_load(&engine->bucket_count);
+	return buckets > MIN_BUCKET_COUNT && count < buckets * MIN_LOAD_FACTOR;
 }
 
-int
-hash_engine_init(struct hash_engine *engine, int bucket_count)
-{
-	uint64_t k0 = 0, k1 = 0;
-	int rc;
-
-	if (!engine || bucket_count <= 0)
-		return -EINVAL;
-
-	/* Explicitly zero-initialize structure fields */
-	engine->hash_buckets = NULL;
-	engine->bucket_count = 0;
-	engine->item_count = 0;
-	engine->total_memory = 0;
-	/* Note: engine_lock will be initialized by pthread_rwlock_init */
-
-	if (!is_power_of_two(bucket_count)) {
-		int n = 1;
-		while (n < bucket_count && n < MAX_BUCKET_COUNT)
-			n <<= 1;
-		bucket_count = n;
-	}
-
-	rc = pthread_rwlock_init(&engine->engine_lock, NULL);
-	if (rc != 0)
-		return -EAGAIN;
-
-	if (hash_key_0 == 0 && hash_key_1 == 0) {
-		if (siphash_init_random_key(&k0, &k1) != 0) {
-			/* NOLINT: fprintf is safe here, C11 fprintf_s not
-			 * available on Linux */
-			fprintf(stderr, "hash_engine_init: warning: weak "
-					"SipHash key used\n");
-		}
-		hash_key_0 = k0;
-		hash_key_1 = k1;
-		siphash_set_key(k0, k1);
-	}
-
-	engine->hash_buckets = calloc(bucket_count, sizeof(struct hash_bucket));
-	if (!engine->hash_buckets)
-		return -ENOMEM;
-	for (int i = 0; i < bucket_count; i++) {
-		if (bucket_init(&engine->hash_buckets[i]) != 0) {
-			for (int j = 0; j < i; j++)
-				bucket_destroy(&engine->hash_buckets[j]);
-			free(engine->hash_buckets);
-			return -ENOMEM;
-		}
-	}
-	engine->bucket_count = bucket_count;
-	engine->item_count = 0;
-	engine->total_memory = 0;
-	return 0;
-}
-
-static inline int
-hash_engine_hash(struct hash_engine *engine, const void *key, size_t key_len)
+static inline uint32_t
+compute_hash(const void *key, size_t key_len, uint32_t bucket_count)
 {
 	uint64_t h = siphash(key, key_len, hash_key_0, hash_key_1);
-	return (int)(h % (uint64_t)engine->bucket_count);
-}
-
-int
-hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
-		      uint32_t *bucket_count, uint32_t *memory_usage)
-{
-	if (!engine)
-		return -EINVAL;
-	if (item_count)
-		*item_count = (uint32_t)engine->item_count;
-	if (bucket_count)
-		*bucket_count = (uint32_t)engine->bucket_count;
-	if (memory_usage)
-		*memory_usage = (uint32_t)engine->total_memory;
-	return 0;
+	return (uint32_t)(h % bucket_count);
 }
 
 static inline int
@@ -137,17 +70,77 @@ keys_equal(const void *k1, size_t l1, const void *k2, size_t l2)
 }
 
 int
-hash_get(struct hash_engine *engine, const void *key, size_t key_len,
-	 const void **value, size_t *value_len)
+hash_engine_init(struct hash_engine *engine, uint32_t bucket_count)
 {
-	int index, i;
-	if (!engine || !key || key_len == 0)
+	uint64_t k0 = 0, k1 = 0;
+	struct hash_bucket *buckets;
+
+	if (!engine || bucket_count == 0)
 		return -EINVAL;
 
-	index = hash_engine_hash(engine, key, key_len);
-	for (i = 0; i < engine->bucket_count; i++) {
+	futex_mutex_init(&engine->engine_lock);
+	atomic_store(&engine->hash_buckets, NULL);
+	atomic_store(&engine->bucket_count, 0);
+	atomic_store(&engine->item_count, 0);
+	atomic_store(&engine->total_memory, 0);
+	atomic_store(&engine->old_buckets, NULL);
+	atomic_store(&engine->old_bucket_count, 0);
+	atomic_store(&engine->migrate_index, 0);
+
+	if (hash_key_0 == 0 && hash_key_1 == 0) {
+		if (siphash_init_random_key(&k0, &k1) != 0) {
+			fprintf(stderr, "hash_engine_init: warning: weak "
+					"SipHash key used\n");
+		}
+		hash_key_0 = k0;
+		hash_key_1 = k1;
+		siphash_set_key(k0, k1);
+	}
+
+	buckets = calloc(bucket_count, sizeof(struct hash_bucket));
+	if (!buckets)
+		return -ENOMEM;
+
+	for (uint32_t i = 0; i < bucket_count; i++) {
+		if (bucket_init(&buckets[i]) != 0) {
+			for (uint32_t j = 0; j < i; j++)
+				bucket_destroy(&buckets[j]);
+			free(buckets);
+			return -ENOMEM;
+		}
+	}
+
+	atomic_store(&engine->hash_buckets, buckets);
+	atomic_store(&engine->bucket_count, bucket_count);
+	return 0;
+}
+
+int
+hash_engine_get_stats(struct hash_engine *engine, uint32_t *item_count,
+		      uint32_t *bucket_count, uint32_t *memory_usage)
+{
+	if (!engine)
+		return -EINVAL;
+	if (item_count)
+		*item_count = atomic_load(&engine->item_count);
+	if (bucket_count)
+		*bucket_count = atomic_load(&engine->bucket_count);
+	if (memory_usage)
+		*memory_usage = atomic_load(&engine->total_memory);
+	return 0;
+}
+
+static int
+lookup_in_table(struct hash_bucket *buckets, uint32_t bucket_count,
+		const void *key, size_t key_len, const void **value,
+		size_t *value_len)
+{
+	uint32_t index = compute_hash(key, key_len, bucket_count);
+
+	for (uint32_t i = 0; i < bucket_count; i++) {
 		struct hash_bucket *bucket
-		    = &engine->hash_buckets[(index + i) % engine->bucket_count];
+		    = &buckets[(index + i) % bucket_count];
+
 		if (bucket_is_empty(bucket))
 			return -ENOENT;
 		if (!bucket_is_tombstone(bucket)
@@ -162,177 +155,381 @@ hash_get(struct hash_engine *engine, const void *key, size_t key_len,
 	return -ENOENT;
 }
 
-int
-hash_put(struct hash_engine *engine, const void *key, size_t key_len,
-	 const void *value, size_t value_len)
+static int
+insert_into_table(struct hash_bucket *buckets, uint32_t bucket_count,
+		  const void *key, size_t key_len, const void *value,
+		  size_t value_len, int *is_new)
 {
-	int index, i, first_tombstone;
-	if (!engine || !key || key_len == 0 || !value || value_len == 0)
-		return -EINVAL;
+	uint32_t index = compute_hash(key, key_len, bucket_count);
+	struct hash_bucket *tombstone_bucket = NULL;
 
-	if (needs_resize(engine)) {
-		if (engine->bucket_count >= MAX_BUCKET_COUNT)
-			return -ENOSPC;
-		if (hash_engine_resize(engine, engine->bucket_count * 2) != 0)
-			return -ENOMEM;
-	}
+	for (uint32_t i = 0; i < bucket_count; i++) {
+		struct hash_bucket *bucket
+		    = &buckets[(index + i) % bucket_count];
 
-	index = hash_engine_hash(engine, key, key_len);
-	first_tombstone = -1;
-	for (i = 0; i < engine->bucket_count; i++) {
-		int idx = (index + i) % engine->bucket_count;
-		struct hash_bucket *bucket = &engine->hash_buckets[idx];
 		if (bucket_is_empty(bucket)) {
-			if (first_tombstone != -1)
-				idx = first_tombstone;
-			if (bucket_set(&engine->hash_buckets[idx], key, key_len,
-				       value, value_len)
-			    != 0)
-				return -ENOMEM;
-			engine->item_count++;
-			engine->total_memory += (int)(key_len + value_len);
-			return 0;
+			if (tombstone_bucket) {
+				int rc = bucket_set(tombstone_bucket, key,
+						    key_len, value, value_len);
+				if (rc == 0 && is_new)
+					*is_new = 1;
+				return rc;
+			}
+			int rc = bucket_set(bucket, key, key_len, value,
+					    value_len);
+			if (rc == 0 && is_new)
+				*is_new = 1;
+			return rc;
 		}
-		if (bucket_is_tombstone(bucket) && first_tombstone == -1) {
-			first_tombstone = idx;
-		} else if (keys_equal(bucket->key, bucket->key_len, key,
-				      key_len)) {
-			size_t old_value_len = bucket->value_len;
-			if (bucket_set_replace_value(bucket, value, value_len)
-			    != 0)
-				return -ENOMEM;
-			engine->total_memory
-			    += (int)(value_len - old_value_len);
-			return 0;
+
+		if (bucket_is_tombstone(bucket)) {
+			if (!tombstone_bucket)
+				tombstone_bucket = bucket;
+			continue;
+		}
+
+		if (keys_equal(bucket->key, bucket->key_len, key, key_len)) {
+			int rc = bucket_set_replace_value(bucket, value,
+							  value_len);
+			if (rc == 0 && is_new)
+				*is_new = 0;
+			return rc;
 		}
 	}
+
+	if (tombstone_bucket) {
+		int rc = bucket_set(tombstone_bucket, key, key_len, value,
+				    value_len);
+		if (rc == 0 && is_new)
+			*is_new = 1;
+		return rc;
+	}
+
 	return -ENOSPC;
 }
 
-int
-hash_delete(struct hash_engine *engine, const void *key, size_t key_len)
+static int
+delete_from_table(struct hash_bucket *buckets, uint32_t bucket_count,
+		  const void *key, size_t key_len, size_t *deleted_key_len,
+		  size_t *deleted_value_len)
 {
-	int index, i;
-	if (!engine || !key || key_len == 0)
-		return -EINVAL;
+	uint32_t index = compute_hash(key, key_len, bucket_count);
 
-	index = hash_engine_hash(engine, key, key_len);
-	for (i = 0; i < engine->bucket_count; i++) {
+	for (uint32_t i = 0; i < bucket_count; i++) {
 		struct hash_bucket *bucket
-		    = &engine->hash_buckets[(index + i) % engine->bucket_count];
-		if (bucket_is_empty(bucket)) {
+		    = &buckets[(index + i) % bucket_count];
+
+		if (bucket_is_empty(bucket))
 			return -ENOENT;
-		}
+
 		if (!bucket_is_tombstone(bucket)
 		    && keys_equal(bucket->key, bucket->key_len, key, key_len)) {
-			pthread_rwlock_wrlock(&bucket->rwlock);
-			engine->item_count--;
-			engine->total_memory
-			    -= (int)(bucket->key_len + bucket->value_len);
-			bucket_make_tombstone(bucket);
-			pthread_rwlock_unlock(&bucket->rwlock);
-			if (needs_resize(engine))
-				(void)hash_engine_resize(
-				    engine, engine->bucket_count / 2);
+			futex_mutex_lock(&bucket->lock_futex);
+			if (deleted_key_len)
+				*deleted_key_len = bucket->key_len;
+			if (deleted_value_len)
+				*deleted_value_len = bucket->value_len;
+			bucket_make_tombstone_unlocked(bucket);
+			futex_mutex_unlock(&bucket->lock_futex);
 			return 0;
 		}
 	}
 	return -ENOENT;
 }
 
-int
-hash_engine_destroy(struct hash_engine *engine)
+static void
+migrate_bucket(struct hash_engine *engine, struct hash_bucket *old_bucket)
 {
-	if (!engine)
-		return -EINVAL;
-	for (int i = 0; i < engine->bucket_count; i++) {
-		bucket_destroy(&engine->hash_buckets[i]);
-	}
-	free(engine->hash_buckets);
-	engine->hash_buckets = NULL;
-	engine->bucket_count = 0;
-	engine->item_count = 0;
-	engine->total_memory = 0;
-	pthread_rwlock_destroy(&engine->engine_lock);
-	return 0;
-}
-
-static inline int
-rehash_insert(struct hash_bucket *buckets, int bucket_count, const void *key,
-	      size_t key_len, const void *value, size_t value_len)
-{
-	int index = (int)(siphash(key, key_len, hash_key_0, hash_key_1)
-			  % (uint64_t)bucket_count);
-	for (int i = 0; i < bucket_count; i++) {
-		int idx = (index + i) % bucket_count;
-		struct hash_bucket *bucket = &buckets[idx];
-		if (bucket_is_empty(bucket) || bucket_is_tombstone(bucket)) {
-			int rc = bucket_set(bucket, key, key_len, value,
-					    value_len);
-			return (rc == 0) ? 0 : -rc;
-		}
-	}
-	return -ENOSPC;
-}
-
-static inline int
-hash_engine_resize(struct hash_engine *engine, int new_bucket_count)
-{
-	int old_bucket_count;
-	struct hash_bucket *old_buckets;
 	struct hash_bucket *new_buckets;
-	int new_total_memory = 0;
-	int new_item_count = 0;
+	uint32_t new_bucket_count;
 
-	pthread_rwlock_wrlock(&engine->engine_lock);
-	old_bucket_count = engine->bucket_count;
-	old_buckets = engine->hash_buckets;
+	if (bucket_is_empty(old_bucket) || bucket_is_tombstone(old_bucket))
+		return;
+
+	new_buckets = atomic_load(&engine->hash_buckets);
+	new_bucket_count = atomic_load(&engine->bucket_count);
+
+	futex_mutex_lock(&old_bucket->lock_futex);
+	if (old_bucket->key == NULL) {
+		futex_mutex_unlock(&old_bucket->lock_futex);
+		return;
+	}
+
+	insert_into_table(new_buckets, new_bucket_count, old_bucket->key,
+			  old_bucket->key_len, old_bucket->value,
+			  old_bucket->value_len, NULL);
+
+	bucket_make_tombstone_unlocked(old_bucket);
+	futex_mutex_unlock(&old_bucket->lock_futex);
+}
+
+static void
+migrate_some_buckets(struct hash_engine *engine, uint32_t count)
+{
+	struct hash_bucket *old;
+	uint32_t old_count;
+	uint32_t idx;
+
+	old = atomic_load(&engine->old_buckets);
+	if (!old)
+		return;
+
+	old_count = atomic_load(&engine->old_bucket_count);
+
+	for (uint32_t i = 0; i < count; i++) {
+		idx = atomic_fetch_add(&engine->migrate_index, 1);
+		if (idx >= old_count) {
+			finish_resize(engine);
+			return;
+		}
+		migrate_bucket(engine, &old[idx]);
+	}
+}
+
+static void
+finish_resize(struct hash_engine *engine)
+{
+	struct hash_bucket *old;
+	uint32_t old_count;
+
+	if (futex_mutex_trylock(&engine->engine_lock) != 0)
+		return;
+
+	old = atomic_load(&engine->old_buckets);
+	if (!old) {
+		futex_mutex_unlock(&engine->engine_lock);
+		return;
+	}
+
+	old_count = atomic_load(&engine->old_bucket_count);
+
+	for (uint32_t i = 0; i < old_count; i++)
+		bucket_destroy(&old[i]);
+	free(old);
+
+	atomic_store(&engine->old_buckets, NULL);
+	atomic_store(&engine->old_bucket_count, 0);
+	atomic_store(&engine->migrate_index, 0);
+
+	futex_mutex_unlock(&engine->engine_lock);
+}
+
+static int
+hash_engine_start_resize(struct hash_engine *engine, uint32_t new_bucket_count)
+{
+	struct hash_bucket *new_buckets;
+	struct hash_bucket *current_buckets;
+	uint32_t current_count;
+
+	futex_mutex_lock(&engine->engine_lock);
+
+	if (atomic_load(&engine->old_buckets) != NULL) {
+		futex_mutex_unlock(&engine->engine_lock);
+		return 0;
+	}
+
 	if (new_bucket_count < MIN_BUCKET_COUNT
 	    || new_bucket_count > MAX_BUCKET_COUNT) {
-		pthread_rwlock_unlock(&engine->engine_lock);
+		futex_mutex_unlock(&engine->engine_lock);
 		return -EINVAL;
 	}
+
+	current_count = atomic_load(&engine->bucket_count);
+	if (new_bucket_count > current_count) {
+		if (!needs_grow(engine)) {
+			futex_mutex_unlock(&engine->engine_lock);
+			return 0;
+		}
+	} else {
+		if (!needs_shrink(engine)) {
+			futex_mutex_unlock(&engine->engine_lock);
+			return 0;
+		}
+	}
+
 	new_buckets = calloc(new_bucket_count, sizeof(struct hash_bucket));
 	if (!new_buckets) {
-		pthread_rwlock_unlock(&engine->engine_lock);
+		futex_mutex_unlock(&engine->engine_lock);
 		return -ENOMEM;
 	}
-	for (int i = 0; i < new_bucket_count; i++) {
+
+	for (uint32_t i = 0; i < new_bucket_count; i++) {
 		if (bucket_init(&new_buckets[i]) != 0) {
-			for (int j = 0; j < i; j++)
+			for (uint32_t j = 0; j < i; j++)
 				bucket_destroy(&new_buckets[j]);
 			free(new_buckets);
-			pthread_rwlock_unlock(&engine->engine_lock);
+			futex_mutex_unlock(&engine->engine_lock);
 			return -ENOMEM;
 		}
 	}
-	for (int i = 0; i < old_bucket_count; i++) {
-		struct hash_bucket *bucket = &old_buckets[i];
-		if (!bucket_is_empty(bucket) && !bucket_is_tombstone(bucket)) {
-			int rc = rehash_insert(
-			    new_buckets, new_bucket_count, bucket->key,
-			    bucket->key_len, bucket->value, bucket->value_len);
-			if (rc != 0) {
-				/* Rollback on failure */
-				for (int j = 0; j < new_bucket_count; j++) {
-					bucket_destroy(&new_buckets[j]);
-				}
-				free(new_buckets);
-				pthread_rwlock_unlock(&engine->engine_lock);
-				return (rc > 0) ? -rc : rc;
-			}
-			new_total_memory
-			    += (int)(bucket->key_len + bucket->value_len);
-			new_item_count++;
+
+	current_buckets = atomic_load(&engine->hash_buckets);
+	current_count = atomic_load(&engine->bucket_count);
+
+	atomic_store(&engine->old_buckets, current_buckets);
+	atomic_store(&engine->old_bucket_count, current_count);
+	atomic_store(&engine->migrate_index, 0);
+	atomic_store(&engine->hash_buckets, new_buckets);
+	atomic_store(&engine->bucket_count, new_bucket_count);
+
+	futex_mutex_unlock(&engine->engine_lock);
+	return 0;
+}
+
+int
+hash_get(struct hash_engine *engine, const void *key, size_t key_len,
+	 const void **value, size_t *value_len)
+{
+	struct hash_bucket *buckets;
+	struct hash_bucket *old;
+	uint32_t bucket_count;
+	int rc;
+
+	if (!engine || !key || key_len == 0)
+		return -EINVAL;
+
+	migrate_some_buckets(engine, MIGRATE_BATCH_SIZE);
+
+	buckets = atomic_load(&engine->hash_buckets);
+	bucket_count = atomic_load(&engine->bucket_count);
+	rc = lookup_in_table(buckets, bucket_count, key, key_len, value,
+			     value_len);
+	if (rc == 0)
+		return 0;
+
+	old = atomic_load(&engine->old_buckets);
+	if (old) {
+		uint32_t old_count = atomic_load(&engine->old_bucket_count);
+		rc = lookup_in_table(old, old_count, key, key_len, value,
+				     value_len);
+	}
+
+	return rc;
+}
+
+int
+hash_put(struct hash_engine *engine, const void *key, size_t key_len,
+	 const void *value, size_t value_len)
+{
+	struct hash_bucket *buckets;
+	uint32_t bucket_count;
+	int is_new = 0;
+	int rc;
+
+	if (!engine || !key || key_len == 0 || !value || value_len == 0)
+		return -EINVAL;
+
+	migrate_some_buckets(engine, MIGRATE_BATCH_SIZE);
+
+	if (needs_grow(engine)) {
+		uint32_t current = atomic_load(&engine->bucket_count);
+		uint32_t new_size = current * 2;
+		if (new_size <= MAX_BUCKET_COUNT)
+			hash_engine_start_resize(engine, new_size);
+	}
+
+	buckets = atomic_load(&engine->hash_buckets);
+	bucket_count = atomic_load(&engine->bucket_count);
+
+	rc = insert_into_table(buckets, bucket_count, key, key_len, value,
+			       value_len, &is_new);
+	if (rc != 0)
+		return rc;
+
+	if (is_new) {
+		atomic_fetch_add(&engine->item_count, 1);
+		atomic_fetch_add(&engine->total_memory,
+				 (uint32_t)(key_len + value_len));
+	} else {
+		atomic_fetch_add(&engine->total_memory, (uint32_t)value_len);
+	}
+
+	return 0;
+}
+
+int
+hash_delete(struct hash_engine *engine, const void *key, size_t key_len)
+{
+	struct hash_bucket *buckets;
+	struct hash_bucket *old;
+	uint32_t bucket_count;
+	size_t del_key_len = 0;
+	size_t del_value_len = 0;
+	int rc;
+
+	if (!engine || !key || key_len == 0)
+		return -EINVAL;
+
+	migrate_some_buckets(engine, MIGRATE_BATCH_SIZE);
+
+	buckets = atomic_load(&engine->hash_buckets);
+	bucket_count = atomic_load(&engine->bucket_count);
+	rc = delete_from_table(buckets, bucket_count, key, key_len,
+			       &del_key_len, &del_value_len);
+
+	if (rc == -ENOENT) {
+		old = atomic_load(&engine->old_buckets);
+		if (old) {
+			uint32_t old_count
+			    = atomic_load(&engine->old_bucket_count);
+			rc = delete_from_table(old, old_count, key, key_len,
+					       &del_key_len, &del_value_len);
 		}
 	}
-	for (int i = 0; i < old_bucket_count; i++)
-		bucket_destroy(&old_buckets[i]);
-	free(old_buckets);
-	engine->hash_buckets = new_buckets;
-	engine->bucket_count = new_bucket_count;
-	engine->total_memory = new_total_memory;
-	engine->item_count = new_item_count;
-	pthread_rwlock_unlock(&engine->engine_lock);
+
+	if (rc == 0) {
+		atomic_fetch_sub(&engine->item_count, 1);
+		atomic_fetch_sub(&engine->total_memory,
+				 (uint32_t)(del_key_len + del_value_len));
+
+		if (needs_shrink(engine)) {
+			uint32_t current = atomic_load(&engine->bucket_count);
+			uint32_t new_size = current / 2;
+			if (new_size >= MIN_BUCKET_COUNT)
+				hash_engine_start_resize(engine, new_size);
+		}
+	}
+
+	return rc;
+}
+
+int
+hash_engine_destroy(struct hash_engine *engine)
+{
+	struct hash_bucket *buckets;
+	struct hash_bucket *old;
+	uint32_t bucket_count;
+	uint32_t old_count;
+
+	if (!engine)
+		return -EINVAL;
+
+	futex_mutex_lock(&engine->engine_lock);
+
+	buckets = atomic_load(&engine->hash_buckets);
+	bucket_count = atomic_load(&engine->bucket_count);
+	if (buckets) {
+		for (uint32_t i = 0; i < bucket_count; i++)
+			bucket_destroy(&buckets[i]);
+		free(buckets);
+	}
+
+	old = atomic_load(&engine->old_buckets);
+	old_count = atomic_load(&engine->old_bucket_count);
+	if (old) {
+		for (uint32_t i = 0; i < old_count; i++)
+			bucket_destroy(&old[i]);
+		free(old);
+	}
+
+	atomic_store(&engine->hash_buckets, NULL);
+	atomic_store(&engine->bucket_count, 0);
+	atomic_store(&engine->item_count, 0);
+	atomic_store(&engine->total_memory, 0);
+	atomic_store(&engine->old_buckets, NULL);
+	atomic_store(&engine->old_bucket_count, 0);
+	atomic_store(&engine->migrate_index, 0);
+
+	futex_mutex_unlock(&engine->engine_lock);
 	return 0;
 }
