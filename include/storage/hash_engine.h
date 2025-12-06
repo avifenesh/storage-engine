@@ -29,6 +29,7 @@ struct hash_engine {
 	_Atomic(struct hash_bucket *) old_buckets;
 	_Atomic uint32_t old_bucket_count;
 	_Atomic uint32_t migrate_index;
+	_Atomic uint32_t migrate_workers;
 };
 
 int hash_engine_init(struct hash_engine *engine, uint32_t bucket_count);

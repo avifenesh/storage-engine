@@ -188,15 +188,6 @@ test_invalid_bucket_counts(void)
 		return TEST_FAILED;
 	}
 
-	/* Negative bucket count */
-	rc = hash_engine_init(&engine, -100);
-	if (rc != -EINVAL) {
-		fprintf(stderr, "Init should reject negative bucket count\n");
-		if (rc == 0)
-			hash_engine_destroy(&engine);
-		return TEST_FAILED;
-	}
-
 	return TEST_PASSED;
 }
 

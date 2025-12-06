@@ -19,7 +19,7 @@
 #define TEST_PASSED 0
 #define TEST_FAILED 1
 
-#define ORACLE_SIZE 512
+#define ORACLE_SIZE 2048
 #define MAX_KEY_ID 2048
 #define OPERATIONS_PER_TRIAL 512
 #define NUM_TRIALS 10
